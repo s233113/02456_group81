@@ -91,14 +91,12 @@ class EncoderClassifierRegular(nn.Module):
         heads=1,
         dropout=0.2,
         attn_dropout=0.2,
-        return_intermediates=False,
         use_static=True,
         obs_strategy="both",
         **kwargs
     ):
         super().__init__()
 
-        self.return_intermediates = return_intermediates
         self.obs_strategy = obs_strategy  # BINARY
         self.pooling = pooling
         self.device = device
@@ -175,12 +173,7 @@ class EncoderClassifierRegular(nn.Module):
         pe = self.pos_encoder(time).to(self.device)  # taken from RAINDROP, (N, T, pe)
         x_time = torch.add(x_time, pe)  # (N, T, F) (N, F)
         # run time attention
-        if self.return_intermediates:
-            x_time, time_intermediates = self.attn_layers_2(
-                x_time, mask=mask, return_hiddens=True
-            )  # mask=mask  # attention on time
-        else:
-            x_time = self.attn_layers_2(x_time, mask=mask)
+        x_time = self.attn_layers_2(x_time, mask=mask)
 
         if self.pooling == "mean":
             x_time = masked_mean_pooling(x_time, mask)
@@ -201,6 +194,4 @@ class EncoderClassifierRegular(nn.Module):
         nonlinear_merged = self.nonlinear_merger(x_merged).relu()
 
         # classify!
-        if self.return_intermediates:
-            return None, time_intermediates.attn_intermediates[0].post_softmax_attn
         return self.classifier(nonlinear_merged)
