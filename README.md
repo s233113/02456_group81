@@ -14,7 +14,7 @@ To create a venv, run:
 
 
 # Run models 
-4 baseline models have been implemented in `Pytorch` and can be trained/tested on `P12`. Each has a unique set of hyperparameters that can be modified, but I've gotten the best performance by running the following commands (_Note: you should change the output paths_):
+4 baseline models have been implemented in `Pytorch` and can be trained/tested on `P12`. Each has a unique set of hyperparameters that can be modified, but I've gotten the best performance by running the following commands (_Note: you should unzip the data files before running these, and change the output paths in the commands_):
 
 `transformer` (https://arxiv.org/abs/1706.03762):
 
