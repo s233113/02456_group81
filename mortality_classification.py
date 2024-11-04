@@ -27,21 +27,18 @@ def train_test(
     batch_size=64,
     epochs=300,
     patience=5,
-    weight_decay=0,
     lr=0.0001,
-    lr_patience=1,
     early_stop_criteria="auroc"
 ):
 
-    batch_size = batch_size // 2  # we concatenate 2 batches together
+    train_batch_size = batch_size // 2  # we concatenate 2 batches together
 
-    train_collate_fn = PairedDataset.paired_collate_fn if model_type == "inverted" else PairedDataset.paired_collate_fn_truncate
-    val_test_collate_fn = MortalityDataset.non_pair_collate_fn if model_type == "inverted" else MortalityDataset.non_pair_collate_fn_truncate
+    train_collate_fn = PairedDataset.paired_collate_fn_truncate
+    val_test_collate_fn = MortalityDataset.non_pair_collate_fn_truncate
 
-
-    train_dataloader = DataLoader(train_pair, batch_size, shuffle=True, num_workers=16, collate_fn=train_collate_fn, pin_memory=True)
-    test_dataloader = DataLoader(test_data, batch_size * 2, shuffle=True, num_workers=16, collate_fn=val_test_collate_fn, pin_memory=True)
-    val_dataloader = DataLoader(val_data, batch_size * 2, shuffle=False, num_workers=16, collate_fn=val_test_collate_fn, pin_memory=True)
+    train_dataloader = DataLoader(train_pair, train_batch_size, shuffle=True, num_workers=16, collate_fn=train_collate_fn, pin_memory=True)
+    test_dataloader = DataLoader(test_data, batch_size, shuffle=True, num_workers=16, collate_fn=val_test_collate_fn, pin_memory=True)
+    val_dataloader = DataLoader(val_data, batch_size, shuffle=False, num_workers=16, collate_fn=val_test_collate_fn, pin_memory=True)
 
     # assign GPU
     if torch.cuda.is_available():
@@ -59,9 +56,7 @@ def train_test(
         device=device,
         model_type=model_type,
         batch_size=batch_size,
-        weight_decay=weight_decay,
         lr=lr,
-        lr_patience=lr_patience,
         early_stop_criteria=early_stop_criteria,
         model_args=model_args
     )
@@ -77,6 +72,7 @@ def train_test(
 
     return loss, accuracy_score, auprc_score, auc_score
 
+
 def train(
     train_dataloader,
     val_dataloader,
@@ -85,9 +81,7 @@ def train(
     patience,
     device,
     model_type,
-    weight_decay,
     lr,
-    lr_patience,
     early_stop_criteria,
     model_args,
     **kwargs,  
@@ -124,7 +118,7 @@ def train(
             output_dims=2,
             **model_args
         )
-    elif model_type == "vanilla":
+    elif model_type == "transformer":
         model = EncoderClassifierRegular(
             num_classes=2,
             device=device,
@@ -140,21 +134,7 @@ def train(
     criterion = nn.CrossEntropyLoss()  # loss
     optimizer = torch.optim.Adam(
         model.parameters(), lr=lr
-    )  # weight_decay=weight_decay,
-    #optimizer = torch.optim.AdamW(model.parameters(), lr=lr)#, weight_decay=weight_decay)
-
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer,
-        mode="max",
-        factor=0.1,
-        patience=lr_patience,
-        threshold=0.0001,
-        threshold_mode="rel",
-        cooldown=0,
-        min_lr=1e-8,
-        eps=1e-08,
-        # verbose=True, depricated
-    )  # TAKEN FROM RAINDROP!
+    )
 
     early_stopping = EarlyStopping(
         patience=patience, verbose=True, path=f"{output_path}/checkpoint.pt"
@@ -167,7 +147,8 @@ def train(
         )
 
     for epoch in range(epochs):
-        # training
+
+        # training step
         model.train().to(device)  # sets training mode
         loss_list = []
         for batch in tqdm.tqdm(train_dataloader, total=len(train_dataloader)):
@@ -192,10 +173,10 @@ def train(
             loss = criterion(predictions.cpu(), labels) + recon_loss
             loss_list.append(loss.item())
             loss.backward()
-            #torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
         accum_loss = np.mean(loss_list)
-        # validation
+
+        # validation step
         model.eval().to(device)
         labels_list = torch.LongTensor([])
         predictions_list = torch.FloatTensor([])
@@ -221,7 +202,6 @@ def train(
             probs = torch.nn.functional.softmax(predictions_list, dim=1)
             auc_score = metrics.roc_auc_score(labels_list, probs[:, 1])
             aupr_score = metrics.average_precision_score(labels_list, probs[:, 1])
-            scheduler.step(aupr_score)
 
         val_loss = criterion(predictions_list.cpu(), labels_list)
 
@@ -232,7 +212,6 @@ def train(
             )
 
         print(f"Epoch: {epoch+1}, Train Loss: {accum_loss}, Val Loss: {val_loss}")
-        # print(f"LR:{scheduler.get_last_lr()}")
 
         # set early stopping
         if early_stop_criteria == "auroc":
@@ -269,8 +248,7 @@ def test(
     output_path,
     device,
     model_type,
-    model_args,
-    model=None,
+    model,
     **kwargs,
 ):
 
@@ -316,10 +294,12 @@ def test(
     )
     cm = metrics.confusion_matrix(
         labels_list, torch.argmax(probs, dim=1)
-    )  # predictions_list
+    )
+
     auc_score = metrics.roc_auc_score(labels_list, probs[:, 1])
     auprc_score = metrics.average_precision_score(labels_list, probs[:, 1])
     accuracy_score = metrics.accuracy_score(labels_list, np.argmax(probs, axis=1))
+
     print(results)
     print(cm)
     print(f"Accuracy = {accuracy_score}")

@@ -73,7 +73,6 @@ class PositionalEncodingTF(nn.Module):
 
     def forward(self, P_time):
         pe = self.getPE(P_time)
-        # pe = pe.cuda()
         return pe
 
 
@@ -85,40 +84,29 @@ class EncoderClassifierRegular(nn.Module):
         pooling="mean",
         num_classes=2,
         sensors_count=37,
-        max_timepoint_count=215,
         static_count=8,
         layers=1,
         heads=1,
         dropout=0.2,
         attn_dropout=0.2,
-        use_static=True,
-        obs_strategy="both",
         **kwargs
     ):
         super().__init__()
 
-        self.obs_strategy = obs_strategy  # BINARY
         self.pooling = pooling
         self.device = device
         self.sensors_count = sensors_count
-        # self.max_timepoint_count = max_timepoint_count
         self.static_count = static_count
 
-        if self.obs_strategy in ("indicator_only", "obs_only"):  # BINARY
-            # print("binary_values_only")
-            self.sensor_axis_dim_in = self.sensors_count
-        else:  # BINARY
-            self.sensor_axis_dim_in = 2 * self.sensors_count
+        self.sensor_axis_dim_in = 2 * self.sensors_count
 
         self.sensor_axis_dim = self.sensor_axis_dim_in
         if self.sensor_axis_dim % 2 != 0:
             self.sensor_axis_dim += 1
 
-        # self.time_axis_dim_in = 2 * self.max_timepoint_count
-        # self.time_axis_dim = min(2 * self.max_timepoint_count, 500)
         self.static_out = self.static_count + 4
 
-        self.attn_layers_2 = Encoder(
+        self.attn_layers = Encoder(
             dim=self.sensor_axis_dim,
             depth=layers,
             heads=heads,
@@ -128,23 +116,14 @@ class EncoderClassifierRegular(nn.Module):
 
         self.sensor_embedding = nn.Linear(self.sensor_axis_dim_in, self.sensor_axis_dim)
 
-        self.use_static = use_static
-
-        if self.use_static:
-            self.static_embedding = nn.Linear(self.static_count, self.static_out)
-            self.nonlinear_merger = nn.Linear(
-                self.sensor_axis_dim + self.static_out,
-                self.sensor_axis_dim + self.static_out,
-            )
-            self.classifier = nn.Linear(
-                self.sensor_axis_dim + self.static_out, num_classes
-            )
-        else:
-            self.nonlinear_merger = nn.Linear(
-                self.sensor_axis_dim,
-                self.sensor_axis_dim,
-            )
-            self.classifier = nn.Linear(self.sensor_axis_dim, num_classes)
+        self.static_embedding = nn.Linear(self.static_count, self.static_out)
+        self.nonlinear_merger = nn.Linear(
+            self.sensor_axis_dim + self.static_out,
+            self.sensor_axis_dim + self.static_out,
+        )
+        self.classifier = nn.Linear(
+            self.sensor_axis_dim + self.static_out, num_classes
+        )
 
         self.pos_encoder = PositionalEncodingTF(self.sensor_axis_dim)
 
@@ -159,21 +138,17 @@ class EncoderClassifierRegular(nn.Module):
         # add indication for missing sensor values
         x_sensor_mask = torch.clone(sensor_mask)  # (N, F, T)
         x_sensor_mask = torch.permute(x_sensor_mask, (0, 2, 1))  # (N, T, F)
-        if self.obs_strategy == "indicator_only":  # Binary
-            x_time = x_sensor_mask.float()  # Binary
-        elif self.obs_strategy == "obs_only":
-            x_time = x_time
-        elif self.obs_strategy == "both":  # Binary
-            x_time = torch.cat([x_time, x_sensor_mask], axis=2)  # (N, T, 2F) #Binary
-        else:
-            raise NotImplementedError(f"Obs strategy {self.obs_strategy} not found.")
+        x_time = torch.cat([x_time, x_sensor_mask], axis=2)  # (N, T, 2F) #Binary
+
         # make sensor embeddings
         x_time = self.sensor_embedding(x_time)  # (N, T, F)
+
         # add positional encodings
         pe = self.pos_encoder(time).to(self.device)  # taken from RAINDROP, (N, T, pe)
         x_time = torch.add(x_time, pe)  # (N, T, F) (N, F)
-        # run time attention
-        x_time = self.attn_layers_2(x_time, mask=mask)
+
+        # run  attention
+        x_time = self.attn_layers(x_time, mask=mask)
 
         if self.pooling == "mean":
             x_time = masked_mean_pooling(x_time, mask)
@@ -185,11 +160,8 @@ class EncoderClassifierRegular(nn.Module):
             x_time = masked_max_pooling(x_time, mask)
 
         # concatenate poolingated attented tensors
-        if self.use_static:
-            static = self.static_embedding(static)
-            x_merged = torch.cat((x_time, static), axis=1)
-        else:
-            x_merged = x_time
+        static = self.static_embedding(static)
+        x_merged = torch.cat((x_time, static), axis=1)
 
         nonlinear_merged = self.nonlinear_merger(x_merged).relu()
 

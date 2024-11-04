@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from collections import namedtuple
 import torch.jit as jit
 from typing import List
 
@@ -387,8 +386,6 @@ class GRUDModel(nn.Module):
         dropout,
         recurrent_dropout,
         device,
-        use_static,
-        obs_strategy,  # One of "indicator_only", "obs_only", "both"
         pooling="hidden", # One of hidden, mean, max
         **kwargs,
     ):
@@ -397,8 +394,6 @@ class GRUDModel(nn.Module):
         # Set up model parameters
         self.n_units = recurrent_n_units
         self.input_dim = input_dim
-        self.use_static = use_static
-        self.obs_strategy = obs_strategy
         self.pool = pooling
 
         # Define layers
@@ -423,21 +418,8 @@ class GRUDModel(nn.Module):
         values = torch.permute(x, (0, 2, 1))
         sensor_mask = torch.permute(sensor_mask, (0, 2, 1)).bool()
 
-        if self.obs_strategy == "both":
-            pass
-        elif self.obs_strategy == "indicator_only":
-            values = sensor_mask.clone()
-        elif self.obs_strategy == "obs_only":
-            sensor_mask = torch.ones_like(sensor_mask)
-        else:
-            raise NotImplementedError(f"Obs strategy {self.obs_stragety} not found.")
-
-        # Process staticgraphic data
-        if self.use_static:
-            static = static.to(self.device)
-            static_encoded = self.static_encoder(static)
-        else:
-            static_encoded = torch.zeros((static.shape[0], self.n_units), device=self.device)
+        static = static.to(self.device)
+        static_encoded = self.static_encoder(static)
 
         # Prepare time
         time = time.unsqueeze(-1)
@@ -446,7 +428,6 @@ class GRUDModel(nn.Module):
         h_t = static_encoded
         x_keep_t = torch.zeros(static.size(0), self.input_dim, device=static.device)
         s_prev_t = time[:, 0].repeat(1, self.input_dim).to(self.device)
-
 
         # Creates padding mask. In RNN, those are used to ensure we do not update the hidden state
         # for #masked out timesteps. In practice, we can just ensure that we grab the hidden state

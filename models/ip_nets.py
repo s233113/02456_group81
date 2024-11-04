@@ -138,15 +138,11 @@ class InterpolationPredictionModel(nn.Module):
         recurrent_dropout,
         ipnets_reconst_fraction,
         sensor_count,
-        obs_strategy,
-        use_static,
         pooling="hidden", # One of hidden, mean, max
         **kwargs
     ):
         super(InterpolationPredictionModel, self).__init__()
 
-        self.obs_strategy = obs_strategy
-        self.use_static = use_static
         self.pool = pooling
 
         self.imputation_stepsize = ipnets_imputation_stepsize
@@ -165,7 +161,7 @@ class InterpolationPredictionModel(nn.Module):
             nn.LazyLinear(recurrent_n_units), nn.ReLU(), nn.Linear(recurrent_n_units, recurrent_n_units)
         )
 
-        self.gru = nn.GRU(input_size=self.interp_dim, hidden_size=recurrent_n_units, dropout=self.recurrent_dropout, batch_first=True)
+        self.gru = nn.GRU(input_size=self.interp_dim, hidden_size=recurrent_n_units, batch_first=True)
 
         self.output_layer = nn.Linear(recurrent_n_units, output_dims)
 
@@ -173,15 +169,6 @@ class InterpolationPredictionModel(nn.Module):
         self.recurrent_dropout_layer = nn.Dropout(self.recurrent_dropout)
 
     def forward(self, x, static, time, sensor_mask, **kwargs) -> torch.Tensor:
-
-        if self.obs_strategy == "both":
-            pass
-        elif self.obs_strategy == "indicator_only":
-            x = sensor_mask.clone()
-        elif self.obs_strategy == "obs_only":
-            sensor_mask = torch.ones_like(sensor_mask)
-        else:
-            raise NotImplementedError(f"Obs strategy {self.obs_strategy} not found.")
 
         times, values, measurements, grid, grid_lengths, static = (
             self.create_timepoint_grid(x, static, time, sensor_mask)
@@ -198,13 +185,13 @@ class InterpolationPredictionModel(nn.Module):
             dropout_mask = self.input_dropout_layer(torch.ones_like(rnn_input[:, 0, :]))
             rnn_input = rnn_input * dropout_mask.unsqueeze(1)
 
-        if self.use_static:
-            demo_encoded = self.demo_encoder(static)
-            hidden_state = demo_encoded
-        else:
-            hidden_state = torch.zeros((x.shape[0], self.n_units), device=x.device)
+        demo_encoded = self.demo_encoder(static)
+        hidden_state = demo_encoded
 
         rnn_output = self.gru(rnn_input, hidden_state.unsqueeze(0))[0]
+        if self.training:
+            dropout_mask = self.recurrent_dropout_layer(torch.ones_like(rnn_output))
+            rnn_output = rnn_output * dropout_mask
 
         # Since we did not mask during the RNN pass, we take the last non-zero
         # time reading

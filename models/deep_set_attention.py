@@ -178,16 +178,9 @@ class DeepSetAttentionModel(nn.Module):
         seft_max_timescales: int,
         seft_n_positional_dims: int,
         n_modalities: int,
-        obs_strategy: str,
-        use_static: str,
         **kwargs
     ):
         super().__init__()
-
-        print(f"Output dims: {output_dims}")
-
-        self.obs_strategy = obs_strategy
-        self.use_static = use_static
 
         self.output_activation = (
             torch.nn.Identity()
@@ -213,7 +206,6 @@ class DeepSetAttentionModel(nn.Module):
         self.phi.layers.append(nn.LazyLinear(seft_latent_width))
         self.latent_width = seft_latent_width
         self.n_heads = heads
-
 
         self.positional_encoding = PositionalEncodingTF(
             d_model=seft_n_positional_dims, max_len=seft_max_timescales
@@ -249,19 +241,9 @@ class DeepSetAttentionModel(nn.Module):
 
     def forward(self, x, static, time, sensor_mask, **kwargs) -> torch.Tensor:
 
-        if self.obs_strategy == "both":
-            pass
-        elif self.obs_strategy == "indicator_only":
-            x = sensor_mask.clone()
-        elif self.obs_strategy == "obs_only":
-            sensor_mask = torch.ones_like(sensor_mask)
-        else:
-            raise NotImplementedError(f"Obs strategy {self.obs_strategy} not found.")
-
         x = x.permute(0, 2, 1)
         sensor_mask = sensor_mask.permute(0, 2, 1)
-        # padded_gather_x, padded_gather_y, padded_y_indices, all_demo, all_lengths
-        # x, static, time, sensor_mask, lengths = self.flatten_unaligned_measurements(x, static, time, sensor_mask)
+
         time, x, sensor_mask, static, lengths = self.flatten_unaligned_measurements(
             x, static, time, sensor_mask
         )
@@ -274,13 +256,11 @@ class DeepSetAttentionModel(nn.Module):
         combined_values = torch.cat(
             (transformed_times, x, transformed_measurements), dim=-1
         )
-        if self.use_static:
-            demo_encoded = self.demo_encoder(static)
-            combined_with_demo = torch.cat(
-                [demo_encoded.unsqueeze(1), combined_values], dim=1
-            )
-        else:
-            combined_with_demo = combined_values
+
+        demo_encoded = self.demo_encoder(static)
+        combined_with_demo = torch.cat(
+            [demo_encoded.unsqueeze(1), combined_values], dim=1
+        )
 
         if lengths.dim() == 2:
             lengths = lengths.squeeze(-1)

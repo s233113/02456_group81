@@ -19,7 +19,8 @@ def truncate_to_longest_item_in_batch(data, times, mask, delta):
     delta = delta[:, valid_time_points, :].permute((0, 2, 1))
     return data, times, mask, delta
 
-def load_pad_separate(dataset_id, base_path="", split_index=1, imputation=None, save_path="./processed_datasets"):
+
+def load_pad_separate(dataset_id, base_path="", split_index=1, save_path="./processed_datasets"):
     """
     loads, zero pads, and separates data preprocessed by SeFT
 
@@ -55,14 +56,10 @@ def load_pad_separate(dataset_id, base_path="", split_index=1, imputation=None, 
         )
 
         # Determine max length based on dataset
-        #if dataset_id == "mimic3_mortality":
-        #    max_len = 2881
         if dataset_id == "physionet2012":
             max_len = 215
-        #elif dataset_id == "physionet2019":
-        #    max_len = 336
-        #elif dataset_id == "HAR":
-        #    max_len = 206
+        else:
+            raise ValueError(f"Dataset {dataset_id} not recognised")
 
         # Preprocess the datasets
         mortality_pos = MortalityDataset(
@@ -77,10 +74,12 @@ def load_pad_separate(dataset_id, base_path="", split_index=1, imputation=None, 
         )
 
         # separate pos v neg samples for equal class representation in batches
-        ytrain = [np.amax(item.get("labels")) for item in Ptrain]  # amax in case of P19
+        ytrain = [item.get("labels") for item in Ptrain]
         ytrain = np.array(ytrain)
-        nonzeroes = ytrain.nonzero()[0]  # need ytrain, a list of 1s and 0s for train data
+        nonzeroes = ytrain.nonzero()[0]
         zeroes = np.where(ytrain == 0)[0]
+
+        # we separate the positive and negative datasets so that we can upsample
         mortality_pos.select_indices(nonzeroes)
         mortality_neg.select_indices(zeroes)
 
@@ -91,12 +90,6 @@ def load_pad_separate(dataset_id, base_path="", split_index=1, imputation=None, 
             mortality_neg.save_to_hdf5(neg_path)
             mortality_val.save_to_hdf5(val_path)
             mortality_test.save_to_hdf5(test_path)
-
-    if imputation:
-        mortality_pos.impute(imputation)
-        mortality_neg.impute(imputation)
-        mortality_val.impute(imputation)
-        mortality_test.impute(imputation)
 
     mortality_pair = PairedDataset(mortality_pos, mortality_neg)
 
@@ -193,7 +186,6 @@ class PairedDataset(Dataset):
         return data, times, static, labels, mask, delta
 
 
-
 class MortalityDataset(Dataset):
 
     def __init__(self, obs=None, max_length=2881, norm_params=None, hdf5_path=None):
@@ -258,41 +250,6 @@ class MortalityDataset(Dataset):
             self.sensor_mask_array[idx],
             self.delta_array[idx],
         )
-
-    def impute(self, method="median"):
-        print("imputing")
-        B, S, T = self.data_array.shape
-        if method == "mean":
-            impute_expanded = np.array(self.norm_params["ts_means"])
-        elif method == "median":
-            if "ts_medians" not in self.norm_params:
-                values = []
-                for i in range(0, S):
-                    sensor_values = self.data_array[:, i, :]
-                    sensor_values = (
-                        sensor_values * self.norm_params["ts_stds"][i]
-                        + self.norm_params["ts_means"][i]
-                    )
-                    sensor_mask = self.sensor_mask_array[:, i, :].astype(bool)
-                    non_zero_sensor_values = sensor_values[sensor_mask]
-                    median = np.median(non_zero_sensor_values)
-                    values.append(median)
-                self.norm_params["ts_medians"] = values
-                dumped = json.dumps(self.norm_params)  # Copy into JSONs
-                print("Done")
-            impute_expanded = np.array(self.norm_params["ts_medians"])
-
-        impute_expanded = (
-            impute_expanded - np.array(self.norm_params["ts_means"])
-        ) / np.array(self.norm_params["ts_stds"])
-
-        impute_expanded = np.tile(
-            np.expand_dims(np.array(impute_expanded), axis=(0, 2)), (B, 1, T)
-        )
-        self.data_array = np.where(
-            self.sensor_mask_array == 0, impute_expanded, self.data_array
-        )
-        self.sensor_mask_array = np.ones_like(self.sensor_mask_array)
 
     def select_indices(self, indices):
         self.data_array = self.data_array[indices]
@@ -368,7 +325,6 @@ class MortalityDataset(Dataset):
             labels_list.append(label)
             delta_list.append(delta)
 
-
         data_array = np.stack(data_list)
         sensor_mask_array = np.stack(sensor_mask_list)
         time_array = np.stack(times_list)
@@ -391,16 +347,14 @@ class MortalityDataset(Dataset):
         Custom collate function for the validation dataloader.
         This function organizes the batch into (data, times, static, labels, mask, delta).
         """
-        # Unpack the batch into individual elements
         data, times, static, labels, mask, delta = zip(*batch)
 
-        # Convert the elements to the desired data types
-        data = torch.stack(data).float()      # Assuming data is tensor-like
-        times = torch.stack(times).float()    # Assuming times are tensor-like
-        static = torch.stack(static).float()  # Assuming static data is tensor-like
-        labels = torch.stack(labels).long()   # Assuming labels are tensor-like
-        mask = torch.stack(mask).float()      # Assuming mask is tensor-like
-        delta = torch.stack(delta).float()    # Assuming delta is tensor-like
+        data = torch.stack(data).float()
+        times = torch.stack(times).float()
+        static = torch.stack(static).float()
+        labels = torch.stack(labels).long()
+        mask = torch.stack(mask).float()
+        delta = torch.stack(delta).float()
 
         return data, times, static, labels, mask, delta
     
@@ -417,7 +371,6 @@ def get_delta_t(times, measurements, measurement_indicators):
 
     Creates array with time from most recent feature measurement.
     """
-    # scattered_times = times * measurement_indicators.astype(np.float32)
     dt_list = []
 
     # First observation has dt = 0
@@ -426,14 +379,11 @@ def get_delta_t(times, measurements, measurement_indicators):
 
     last_dt = first_dt.copy()  # Initialize last_dt before the loop
     for i in range(1, measurement_indicators.shape[0]):
-        # print(f"measurement_indicators.shape[0] {measurement_indicators.shape[0]}")
-        # print(i)
         last_dt = np.where(
             measurement_indicators[i - 1],
             np.full_like(last_dt, times[i] - times[i - 1]),
             times[i] - times[i - 1] + last_dt,
         )
-        # print(f"last_dt {last_dt}")
         dt_list.append(last_dt)
 
     dt_array = np.stack(dt_list)
