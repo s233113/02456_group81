@@ -18,7 +18,7 @@ To create a venv, run:
 
 `transformer` (https://arxiv.org/abs/1706.03762):
 
-`python cli.py --output_path=your/path/here --epochs=100 --batch_size=16 --model_type=vanilla --dropout=0.2 --attn_dropout=0.1 --layers=3 --heads=1 --pooling=max --lr=0.0001 --value_embed_size=8` 
+`python cli.py --output_path=your/path/here --epochs=100 --batch_size=16 --model_type=vanilla --dropout=0.2 --attn_dropout=0.1 --layers=3 --heads=1 --pooling=max --lr=0.0001` 
 
 
 `seft` (https://github.com/BorgwardtLab/Set_Functions_for_Time_Series):
