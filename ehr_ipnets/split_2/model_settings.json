@@ -1,0 +1,1 @@
+{"model_type": "ipnets", "batch_size": 32, "epochs": 100, "dataset": "physionet2012", "learning_rate": 0.001, "patience": 10, "early_stop_criteria": "auroc", "base_path": "./P12data", "pooling_fxn": "max", "recurrent_dropout": 0.3, "recurrent_n_units": 32, "ipnets_imputation_stepsize": 1.0, "ipnets_reconst_fraction": 0.75}
