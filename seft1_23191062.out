@@ -1,0 +1,342 @@
+Sat Nov 16 16:38:03 2024       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 560.35.03              Driver Version: 560.35.03      CUDA Version: 12.6     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA A100 80GB PCIe          On  |   00000000:CA:00.0 Off |                    0 |
+| N/A   30C    P0             65W /  300W |       1MiB /  81920MiB |      0%   E. Process |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+                                                                                         
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI        PID   Type   Process name                              GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+Loading preprocessed datasets from ./processed_datasets
+Loaded dataset from ./processed_datasets/physionet2012_1_pos.h5
+Loaded dataset from ./processed_datasets/physionet2012_1_neg.h5
+Loaded dataset from ./processed_datasets/physionet2012_1_val.h5
+Loaded dataset from ./processed_datasets/physionet2012_1_test.h5
+# of trainable parameters: 320352
+Epoch: 1, Train Loss: 0.7689702747360109, Val Loss: 0.7365990281105042
+Validation loss decreased (inf --> 0.213671).  Saving model ...
+Epoch: 2, Train Loss: 0.5722103800092425, Val Loss: 0.47001081705093384
+Validation loss decreased (0.213671 --> 0.178391).  Saving model ...
+Epoch: 3, Train Loss: 0.5278979577715435, Val Loss: 0.4612651765346527
+Validation loss decreased (0.178391 --> 0.170119).  Saving model ...
+Epoch: 4, Train Loss: 0.49756176083806963, Val Loss: 0.495859831571579
+Validation loss decreased (0.170119 --> 0.155471).  Saving model ...
+Epoch: 5, Train Loss: 0.48539434870084125, Val Loss: 0.5769967436790466
+Validation loss decreased (0.155471 --> 0.153159).  Saving model ...
+Epoch: 6, Train Loss: 0.48077608621309675, Val Loss: 0.5964888334274292
+Validation loss decreased (0.153159 --> 0.147710).  Saving model ...
+Epoch: 7, Train Loss: 0.4786222085120186, Val Loss: 0.5551266074180603
+EarlyStopping counter: 1 out of 10
+Epoch: 8, Train Loss: 0.4998471098286765, Val Loss: 0.7032835483551025
+EarlyStopping counter: 2 out of 10
+Epoch: 9, Train Loss: 0.5563001675265176, Val Loss: 0.5462134480476379
+EarlyStopping counter: 3 out of 10
+Epoch: 10, Train Loss: 0.6413777437474992, Val Loss: 0.6364269852638245
+EarlyStopping counter: 4 out of 10
+Epoch: 11, Train Loss: 1.1436959225980063, Val Loss: 0.6465570330619812
+EarlyStopping counter: 5 out of 10
+Epoch: 12, Train Loss: 0.590981893596195, Val Loss: 0.39687153697013855
+EarlyStopping counter: 6 out of 10
+Epoch: 13, Train Loss: 1.7705326595949749, Val Loss: 0.4921628534793854
+Validation loss decreased (0.147710 --> 0.146239).  Saving model ...
+Epoch: 14, Train Loss: 0.5062607276061225, Val Loss: 0.49995943903923035
+EarlyStopping counter: 1 out of 10
+Epoch: 15, Train Loss: 0.49320188637763734, Val Loss: 0.5237299203872681
+Validation loss decreased (0.146239 --> 0.145917).  Saving model ...
+Epoch: 16, Train Loss: 0.48802047305636936, Val Loss: 0.6206656098365784
+EarlyStopping counter: 1 out of 10
+Epoch: 17, Train Loss: 0.4781668134151943, Val Loss: 0.49827641248703003
+EarlyStopping counter: 2 out of 10
+Epoch: 18, Train Loss: 0.4706889679507604, Val Loss: 0.542804479598999
+EarlyStopping counter: 3 out of 10
+Epoch: 19, Train Loss: 0.47092301504952566, Val Loss: 0.6031754612922668
+Validation loss decreased (0.145917 --> 0.144581).  Saving model ...
+Epoch: 20, Train Loss: 0.4626157771027277, Val Loss: 0.5335909724235535
+Validation loss decreased (0.144581 --> 0.141560).  Saving model ...
+Epoch: 21, Train Loss: 0.46699984111483134, Val Loss: 0.4555283188819885
+EarlyStopping counter: 1 out of 10
+Epoch: 22, Train Loss: 0.4576210431636326, Val Loss: 0.4811267852783203
+EarlyStopping counter: 2 out of 10
+Epoch: 23, Train Loss: 0.4522583882013957, Val Loss: 0.5156988501548767
+EarlyStopping counter: 3 out of 10
+Epoch: 24, Train Loss: 0.4571252176685939, Val Loss: 0.6220714449882507
+EarlyStopping counter: 4 out of 10
+Epoch: 25, Train Loss: 0.4637535654363178, Val Loss: 0.42543819546699524
+EarlyStopping counter: 5 out of 10
+Epoch: 26, Train Loss: 0.44727749720452326, Val Loss: 0.4894239008426666
+EarlyStopping counter: 6 out of 10
+Epoch: 27, Train Loss: 0.442034790913264, Val Loss: 0.4902769923210144
+EarlyStopping counter: 7 out of 10
+Epoch: 28, Train Loss: 0.4441861917102148, Val Loss: 0.623426079750061
+EarlyStopping counter: 8 out of 10
+Epoch: 29, Train Loss: 0.4424155591026185, Val Loss: 0.48387083411216736
+EarlyStopping counter: 9 out of 10
+Epoch: 30, Train Loss: 0.43688539569340057, Val Loss: 0.5140630602836609
+EarlyStopping counter: 10 out of 10
+Early stopping
+Test Loss: 0.5301700830459595
+{'0': {'precision': 0.9639519359145527, 'recall': 0.7023346303501945, 'f1-score': 0.8126055149127743, 'support': 1028}, '1': {'precision': 0.32, 'recall': 0.8421052631578947, 'f1-score': 0.463768115942029, 'support': 171}, 'accuracy': 0.7222685571309424, 'macro avg': {'precision': 0.6419759679572764, 'recall': 0.7722199467540446, 'f1-score': 0.6381868154274016, 'support': 1199}, 'weighted avg': {'precision': 0.8721122519767809, 'recall': 0.7222685571309424, 'f1-score': 0.7628547265691568, 'support': 1199}}
+[[722 306]
+ [ 27 144]]
+Accuracy = 0.7222685571309424
+AUPRC = 0.5443734339142001
+AUROC = 0.8526975675245182
+Loading preprocessed datasets from ./processed_datasets
+Loaded dataset from ./processed_datasets/physionet2012_2_pos.h5
+Loaded dataset from ./processed_datasets/physionet2012_2_neg.h5
+Loaded dataset from ./processed_datasets/physionet2012_2_val.h5
+Loaded dataset from ./processed_datasets/physionet2012_2_test.h5
+# of trainable parameters: 320352
+Epoch: 1, Train Loss: 0.8893828298896551, Val Loss: 0.5311064124107361
+Validation loss decreased (inf --> 0.336725).  Saving model ...
+Epoch: 2, Train Loss: 0.6269070799462497, Val Loss: 0.5151340365409851
+Validation loss decreased (0.336725 --> 0.193469).  Saving model ...
+Epoch: 3, Train Loss: 0.5533128399401903, Val Loss: 0.5495809316635132
+Validation loss decreased (0.193469 --> 0.169490).  Saving model ...
+Epoch: 4, Train Loss: 0.5268308045342565, Val Loss: 0.6240277290344238
+Validation loss decreased (0.169490 --> 0.158339).  Saving model ...
+Epoch: 5, Train Loss: 0.5072021717205644, Val Loss: 0.4032306671142578
+Validation loss decreased (0.158339 --> 0.150039).  Saving model ...
+Epoch: 6, Train Loss: 0.5146969347260892, Val Loss: 0.5400569438934326
+EarlyStopping counter: 1 out of 10
+Epoch: 7, Train Loss: 0.5142835597507656, Val Loss: 0.38884177803993225
+Validation loss decreased (0.150039 --> 0.149136).  Saving model ...
+Epoch: 8, Train Loss: 0.4996420661918819, Val Loss: 0.5667560696601868
+Validation loss decreased (0.149136 --> 0.148059).  Saving model ...
+Epoch: 9, Train Loss: 0.48536405386403203, Val Loss: 0.5619812607765198
+EarlyStopping counter: 1 out of 10
+Epoch: 10, Train Loss: 0.4911804464645684, Val Loss: 0.5362606644630432
+EarlyStopping counter: 2 out of 10
+Epoch: 11, Train Loss: 0.5051920171827078, Val Loss: 0.5875325798988342
+EarlyStopping counter: 3 out of 10
+Epoch: 12, Train Loss: 0.49833447858691216, Val Loss: 0.647699236869812
+EarlyStopping counter: 4 out of 10
+Epoch: 13, Train Loss: 0.5232136817649007, Val Loss: 0.5489723682403564
+EarlyStopping counter: 5 out of 10
+Epoch: 14, Train Loss: 0.5161502924747765, Val Loss: 0.5204179883003235
+EarlyStopping counter: 6 out of 10
+Epoch: 15, Train Loss: 0.4881265480071306, Val Loss: 0.48815837502479553
+EarlyStopping counter: 7 out of 10
+Epoch: 16, Train Loss: 0.4690271052531898, Val Loss: 0.37304455041885376
+EarlyStopping counter: 8 out of 10
+Epoch: 17, Train Loss: 0.4992285603657365, Val Loss: 0.5805556178092957
+EarlyStopping counter: 9 out of 10
+Epoch: 18, Train Loss: 0.46568036917597055, Val Loss: 0.3712943494319916
+Validation loss decreased (0.148059 --> 0.143712).  Saving model ...
+Epoch: 19, Train Loss: 0.45124016841873527, Val Loss: 0.4861651659011841
+EarlyStopping counter: 1 out of 10
+Epoch: 20, Train Loss: 0.4469110048376024, Val Loss: 0.5642881393432617
+EarlyStopping counter: 2 out of 10
+Epoch: 21, Train Loss: 0.4659716938622296, Val Loss: 0.41558095812797546
+EarlyStopping counter: 3 out of 10
+Epoch: 22, Train Loss: 0.46938374964520335, Val Loss: 0.49555349349975586
+EarlyStopping counter: 4 out of 10
+Epoch: 23, Train Loss: 0.7372025055810809, Val Loss: 3.625784397125244
+EarlyStopping counter: 5 out of 10
+Epoch: 24, Train Loss: 1.5990507015958428, Val Loss: 0.6468161344528198
+EarlyStopping counter: 6 out of 10
+Epoch: 25, Train Loss: 0.6951428148895502, Val Loss: 0.6919052600860596
+EarlyStopping counter: 7 out of 10
+Epoch: 26, Train Loss: 0.6931477021425962, Val Loss: 0.6932119727134705
+EarlyStopping counter: 8 out of 10
+Epoch: 27, Train Loss: 0.6931471852585673, Val Loss: 0.6931489109992981
+EarlyStopping counter: 9 out of 10
+Epoch: 28, Train Loss: 0.6931471806019545, Val Loss: 0.6931471228599548
+EarlyStopping counter: 10 out of 10
+Early stopping
+Test Loss: 0.35740938782691956
+{'0': {'precision': 0.9433368310598111, 'recall': 0.864423076923077, 'f1-score': 0.9021575514300051, 'support': 1040}, '1': {'precision': 0.4268292682926829, 'recall': 0.660377358490566, 'f1-score': 0.5185185185185185, 'support': 159}, 'accuracy': 0.8373644703919934, 'macro avg': {'precision': 0.685083049676247, 'recall': 0.7624002177068214, 'f1-score': 0.7103380349742618, 'support': 1199}, 'weighted avg': {'precision': 0.8748425003842702, 'recall': 0.8373644703919934, 'f1-score': 0.8512829840964552, 'support': 1199}}
+[[899 141]
+ [ 54 105]]
+Accuracy = 0.8373644703919934
+AUPRC = 0.5013710476218818
+AUROC = 0.8601898887276246
+Loading preprocessed datasets from ./processed_datasets
+Loaded dataset from ./processed_datasets/physionet2012_3_pos.h5
+Loaded dataset from ./processed_datasets/physionet2012_3_neg.h5
+Loaded dataset from ./processed_datasets/physionet2012_3_val.h5
+Loaded dataset from ./processed_datasets/physionet2012_3_test.h5
+# of trainable parameters: 320352
+Epoch: 1, Train Loss: 0.7745436653494835, Val Loss: 0.6613308191299438
+Validation loss decreased (inf --> 0.287085).  Saving model ...
+Epoch: 2, Train Loss: 0.6027791434898973, Val Loss: 0.7497060298919678
+Validation loss decreased (0.287085 --> 0.174179).  Saving model ...
+Epoch: 3, Train Loss: 0.5282752956263721, Val Loss: 0.5641521215438843
+Validation loss decreased (0.174179 --> 0.147318).  Saving model ...
+Epoch: 4, Train Loss: 0.4933544625528157, Val Loss: 0.7183602452278137
+Validation loss decreased (0.147318 --> 0.140021).  Saving model ...
+Epoch: 5, Train Loss: 0.4976641056127846, Val Loss: 0.5169557929039001
+Validation loss decreased (0.140021 --> 0.137511).  Saving model ...
+Epoch: 6, Train Loss: 0.5004322631284595, Val Loss: 0.6250839829444885
+EarlyStopping counter: 1 out of 10
+Epoch: 7, Train Loss: 0.4830385516397655, Val Loss: 0.6084825396537781
+EarlyStopping counter: 2 out of 10
+Epoch: 8, Train Loss: 0.48725463869050145, Val Loss: 0.6846408247947693
+EarlyStopping counter: 3 out of 10
+Epoch: 9, Train Loss: 0.47031396022066474, Val Loss: 0.35523271560668945
+Validation loss decreased (0.137511 --> 0.132321).  Saving model ...
+Epoch: 10, Train Loss: 0.467399078886956, Val Loss: 0.5442526936531067
+EarlyStopping counter: 1 out of 10
+Epoch: 11, Train Loss: 0.46061993995681405, Val Loss: 0.4843054711818695
+Validation loss decreased (0.132321 --> 0.131945).  Saving model ...
+Epoch: 12, Train Loss: 0.4567122170701623, Val Loss: 0.5611427426338196
+Validation loss decreased (0.131945 --> 0.130159).  Saving model ...
+Epoch: 13, Train Loss: 0.45986143313348293, Val Loss: 0.35859623551368713
+Validation loss decreased (0.130159 --> 0.123448).  Saving model ...
+Epoch: 14, Train Loss: 0.4842971386387944, Val Loss: 0.4794793725013733
+EarlyStopping counter: 1 out of 10
+Epoch: 15, Train Loss: 0.46277192514389753, Val Loss: 0.5422508716583252
+EarlyStopping counter: 2 out of 10
+Epoch: 16, Train Loss: 0.4806522657163441, Val Loss: 0.5880225896835327
+EarlyStopping counter: 3 out of 10
+Epoch: 17, Train Loss: 0.4843569160439074, Val Loss: 0.4887550175189972
+EarlyStopping counter: 4 out of 10
+Epoch: 18, Train Loss: 0.47594612231478095, Val Loss: 0.5117968916893005
+EarlyStopping counter: 5 out of 10
+Epoch: 19, Train Loss: 0.48863230366259813, Val Loss: 0.764839768409729
+EarlyStopping counter: 6 out of 10
+Epoch: 20, Train Loss: 0.4807388256303966, Val Loss: 0.6362072825431824
+EarlyStopping counter: 7 out of 10
+Epoch: 21, Train Loss: 0.6546822041273117, Val Loss: 40.09873962402344
+EarlyStopping counter: 8 out of 10
+Epoch: 22, Train Loss: 10.743972917087376, Val Loss: 0.7014850378036499
+EarlyStopping counter: 9 out of 10
+Epoch: 23, Train Loss: 0.6931547420099378, Val Loss: 0.6931897401809692
+EarlyStopping counter: 10 out of 10
+Early stopping
+Test Loss: 0.35902881622314453
+{'0': {'precision': 0.9362637362637363, 'recall': 0.8336594911937377, 'f1-score': 0.8819875776397516, 'support': 1022}, '1': {'precision': 0.4117647058823529, 'recall': 0.672316384180791, 'f1-score': 0.5107296137339056, 'support': 177}, 'accuracy': 0.8098415346121768, 'macro avg': {'precision': 0.6740142210730447, 'recall': 0.7529879376872644, 'f1-score': 0.6963585956868286, 'support': 1199}, 'weighted avg': {'precision': 0.8588356058404627, 'recall': 0.8098415346121768, 'f1-score': 0.8271813561123664, 'support': 1199}}
+[[852 170]
+ [ 58 119]]
+Accuracy = 0.8098415346121768
+AUPRC = 0.5429408924454397
+AUROC = 0.8641580151912169
+Loading preprocessed datasets from ./processed_datasets
+Loaded dataset from ./processed_datasets/physionet2012_4_pos.h5
+Loaded dataset from ./processed_datasets/physionet2012_4_neg.h5
+Loaded dataset from ./processed_datasets/physionet2012_4_val.h5
+Loaded dataset from ./processed_datasets/physionet2012_4_test.h5
+# of trainable parameters: 320352
+Epoch: 1, Train Loss: 0.932340637780726, Val Loss: 0.7021902799606323
+Validation loss decreased (inf --> 0.313611).  Saving model ...
+Epoch: 2, Train Loss: 0.5978584941476583, Val Loss: 0.5893420577049255
+Validation loss decreased (0.313611 --> 0.195847).  Saving model ...
+Epoch: 3, Train Loss: 0.5275499923154712, Val Loss: 0.6501369476318359
+Validation loss decreased (0.195847 --> 0.181294).  Saving model ...
+Epoch: 4, Train Loss: 0.5199210308492184, Val Loss: 0.5094558000564575
+EarlyStopping counter: 1 out of 10
+Epoch: 5, Train Loss: 0.5234627430327237, Val Loss: 0.5546749234199524
+Validation loss decreased (0.181294 --> 0.169910).  Saving model ...
+Epoch: 6, Train Loss: 0.4876813581213355, Val Loss: 0.5525113940238953
+EarlyStopping counter: 1 out of 10
+Epoch: 7, Train Loss: 0.4943701378069818, Val Loss: 0.42211422324180603
+Validation loss decreased (0.169910 --> 0.163510).  Saving model ...
+Epoch: 8, Train Loss: 0.5733892181888223, Val Loss: 0.5631673336029053
+Validation loss decreased (0.163510 --> 0.162837).  Saving model ...
+Epoch: 9, Train Loss: 0.48675664607435465, Val Loss: 0.48789137601852417
+Validation loss decreased (0.162837 --> 0.160597).  Saving model ...
+Epoch: 10, Train Loss: 0.4771861704066396, Val Loss: 0.5621196031570435
+Validation loss decreased (0.160597 --> 0.156315).  Saving model ...
+Epoch: 11, Train Loss: 0.4734466727823019, Val Loss: 0.5843849182128906
+EarlyStopping counter: 1 out of 10
+Epoch: 12, Train Loss: 0.46465370152145624, Val Loss: 0.6579608917236328
+Validation loss decreased (0.156315 --> 0.153791).  Saving model ...
+Epoch: 13, Train Loss: 0.4578070747666061, Val Loss: 0.41734635829925537
+EarlyStopping counter: 1 out of 10
+Epoch: 14, Train Loss: 0.4452044893987477, Val Loss: 0.42852431535720825
+EarlyStopping counter: 2 out of 10
+Epoch: 15, Train Loss: 0.4477930753491819, Val Loss: 0.5002204775810242
+EarlyStopping counter: 3 out of 10
+Epoch: 16, Train Loss: 0.4446538956835866, Val Loss: 0.5123822093009949
+EarlyStopping counter: 4 out of 10
+Epoch: 17, Train Loss: 0.4417618946172297, Val Loss: 0.44216927886009216
+EarlyStopping counter: 5 out of 10
+Epoch: 18, Train Loss: 0.4446716606616974, Val Loss: 0.44421350955963135
+EarlyStopping counter: 6 out of 10
+Epoch: 19, Train Loss: 0.43932101456448436, Val Loss: 0.4849785268306732
+EarlyStopping counter: 7 out of 10
+Epoch: 20, Train Loss: 0.43979718443006277, Val Loss: 0.5286970138549805
+EarlyStopping counter: 8 out of 10
+Epoch: 21, Train Loss: 0.4272919804789126, Val Loss: 0.4920680820941925
+EarlyStopping counter: 9 out of 10
+Epoch: 22, Train Loss: 0.43788824044167995, Val Loss: 0.4202025532722473
+EarlyStopping counter: 10 out of 10
+Early stopping
+Test Loss: 0.6160765290260315
+{'0': {'precision': 0.9707317073170731, 'recall': 0.5852941176470589, 'f1-score': 0.7302752293577982, 'support': 1020}, '1': {'precision': 0.2756849315068493, 'recall': 0.8994413407821229, 'f1-score': 0.4220183486238532, 'support': 179}, 'accuracy': 0.6321934945788157, 'macro avg': {'precision': 0.6232083194119612, 'recall': 0.7423677292145909, 'f1-score': 0.5761467889908257, 'support': 1199}, 'weighted avg': {'precision': 0.8669674263579155, 'recall': 0.6321934945788157, 'f1-score': 0.6842552279805036, 'support': 1199}}
+[[597 423]
+ [ 18 161]]
+Accuracy = 0.6321934945788157
+AUPRC = 0.5655613043932357
+AUROC = 0.8517909957279
+Loading preprocessed datasets from ./processed_datasets
+Loaded dataset from ./processed_datasets/physionet2012_5_pos.h5
+Loaded dataset from ./processed_datasets/physionet2012_5_neg.h5
+Loaded dataset from ./processed_datasets/physionet2012_5_val.h5
+Loaded dataset from ./processed_datasets/physionet2012_5_test.h5
+# of trainable parameters: 320352
+Epoch: 1, Train Loss: 0.8543776246634397, Val Loss: 0.63062584400177
+Validation loss decreased (inf --> 0.261857).  Saving model ...
+Epoch: 2, Train Loss: 0.5984142282695482, Val Loss: 0.6112337708473206
+Validation loss decreased (0.261857 --> 0.197578).  Saving model ...
+Epoch: 3, Train Loss: 0.5577736072468035, Val Loss: 0.6009010076522827
+Validation loss decreased (0.197578 --> 0.151214).  Saving model ...
+Epoch: 4, Train Loss: 0.5675251398122672, Val Loss: 0.3151818513870239
+EarlyStopping counter: 1 out of 10
+Epoch: 5, Train Loss: 0.5867019218928886, Val Loss: 0.4360130727291107
+EarlyStopping counter: 2 out of 10
+Epoch: 6, Train Loss: 0.5317123875473485, Val Loss: 0.6116043925285339
+EarlyStopping counter: 3 out of 10
+Epoch: 7, Train Loss: 0.5030714314092289, Val Loss: 0.8565032482147217
+Validation loss decreased (0.151214 --> 0.150039).  Saving model ...
+Epoch: 8, Train Loss: 0.49447550331101275, Val Loss: 0.37288984656333923
+Validation loss decreased (0.150039 --> 0.137392).  Saving model ...
+Epoch: 9, Train Loss: 0.4911014126105742, Val Loss: 0.5030531287193298
+EarlyStopping counter: 1 out of 10
+Epoch: 10, Train Loss: 0.4835271257342714, Val Loss: 0.6679058074951172
+EarlyStopping counter: 2 out of 10
+Epoch: 11, Train Loss: 0.4839124566677845, Val Loss: 0.29732707142829895
+Validation loss decreased (0.137392 --> 0.135893).  Saving model ...
+Epoch: 12, Train Loss: 0.5080501491373236, Val Loss: 4.8804731369018555
+EarlyStopping counter: 1 out of 10
+Epoch: 13, Train Loss: 0.5262743898413398, Val Loss: 0.5759397745132446
+Validation loss decreased (0.135893 --> 0.135512).  Saving model ...
+Epoch: 14, Train Loss: 0.5127166983756152, Val Loss: 0.3400948643684387
+EarlyStopping counter: 1 out of 10
+Epoch: 15, Train Loss: 0.5393038947473873, Val Loss: 0.5793890357017517
+EarlyStopping counter: 2 out of 10
+Epoch: 16, Train Loss: 0.5380449064753272, Val Loss: 0.36044734716415405
+EarlyStopping counter: 3 out of 10
+Epoch: 17, Train Loss: 0.4982979902715394, Val Loss: 1.6021636724472046
+EarlyStopping counter: 4 out of 10
+Epoch: 18, Train Loss: 0.4746473914746082, Val Loss: 0.5104659795761108
+EarlyStopping counter: 5 out of 10
+Epoch: 19, Train Loss: 0.49120156105720636, Val Loss: 0.2819547653198242
+EarlyStopping counter: 6 out of 10
+Epoch: 20, Train Loss: 0.6129093341755144, Val Loss: 0.2909546494483948
+EarlyStopping counter: 7 out of 10
+Epoch: 21, Train Loss: 0.5110457304752234, Val Loss: 0.5642116665840149
+EarlyStopping counter: 8 out of 10
+Epoch: 22, Train Loss: 0.5891185953761592, Val Loss: 0.6176908016204834
+EarlyStopping counter: 9 out of 10
+Epoch: 23, Train Loss: 0.5506855019114234, Val Loss: 0.7697976231575012
+EarlyStopping counter: 10 out of 10
+Early stopping
+Test Loss: 1.175710678100586
+{'0': {'precision': 0.9740791268758526, 'recall': 0.691190706679574, 'f1-score': 0.8086070215175538, 'support': 1033}, '1': {'precision': 0.315450643776824, 'recall': 0.8855421686746988, 'f1-score': 0.4651898734177215, 'support': 166}, 'accuracy': 0.7180984153461217, 'macro avg': {'precision': 0.6447648853263384, 'recall': 0.7883664376771364, 'f1-score': 0.6368984474676377, 'support': 1199}, 'weighted avg': {'precision': 0.882892864828781, 'recall': 0.7180984153461217, 'f1-score': 0.7610613613135737, 'support': 1199}}
+[[714 319]
+ [ 19 147]]
+Accuracy = 0.7180984153461217
+AUPRC = 0.5499972666341728
+AUROC = 0.8725784065594419
