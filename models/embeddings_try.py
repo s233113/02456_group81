@@ -1,6 +1,8 @@
 import torch
 from torch import nn
 from transformers import MambaConfig
+import pdb
+import numpy as np
 
 
 # Time embedding layer
@@ -102,6 +104,7 @@ def preprocess_and_embed(train_data, config):
     Returns:
         Embedded data and labels
     """
+    # pdb.set_trace()
     max_time_steps = max(len(entry["ts_times"]) for entry in train_data)
     num_features = train_data[0]["ts_values"].shape[1]
     static_size = len(train_data[0]["static"])
@@ -124,3 +127,7 @@ def preprocess_and_embed(train_data, config):
     embedded_data = embedding_layer(ts_values_padded, ts_indicators_padded, ts_times_padded, static_features)
 
     return embedded_data, labels
+
+
+train_data = np.load('../split_1/train_physionet2012_1.npy', allow_pickle=True)
+print(preprocess_and_embed(train_data, MambaConfig))
