@@ -1,5 +1,5 @@
 # Selective_SSM_for_EHR_Classification
-Project 24 for 02456 2024
+Project 24 for 02456 2024. Slides from group meetings can be found here: https://docs.google.com/presentation/d/1yetlmIH0u_5zdRKiLDMxKVesZKkAbiG7j0vTfhUPhU0/edit?usp=sharing
 
 # Background
 This repository allows you to train and test a variety of electronic health record (EHR) classification models on mortality prediction for the Physionet 2012 Challenge (`P12`) dataset. More information on the dataset can be found here (https://physionet.org/content/challenge-2012/1.0.0/). Note that the data in the repository has already been preprocessed (outliers removed, normalized) in accordance with https://github.com/ExpectationMax/medical_ts_datasets/tree/master and saved as 5 randomized splits of train/validation/test data. Adam is used for optimization.
