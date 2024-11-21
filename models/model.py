@@ -27,7 +27,7 @@ from odyssey.models.ehr_mamba.mamba_utils import (
     MambaForSequenceClassification,
     MambaSequenceClassifierOutput,
 )
-from odyssey.models.embeddings import MambaEmbeddingsForCEHR
+from embeddings import MambaEmbeddingsForCEHR
 
 
 class MambaPretrain(pl.LightningModule):
