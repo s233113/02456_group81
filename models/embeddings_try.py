@@ -96,43 +96,74 @@ class MambaEmbeddingLayer(nn.Module):
         return combined_embeds
 
 
-# Preprocessing and embedding function
-def preprocess_and_embed(train_data, config, dropout):
+# # Preprocessing and embedding function
+# def preprocess_and_embed(train_data, config, dropout):
+#     """
+#     Preprocess the train_data and embed it for model input.
+
+#     Parameters:
+#         train_data: numpy array of dictionaries
+#         config: MambaConfig object with model hyperparameters
+
+#     Returns:
+#         Embedded data and labels
+#     """
+#     # pdb.set_trace()
+#     max_time_steps = max(len(entry["ts_times"]) for entry in train_data)
+#     num_features = train_data[0]["ts_values"].shape[1]
+#     static_size = len(train_data[0]["static"])
+
+#     embedding_layer = MambaEmbeddingLayer(config, num_features, static_size, max_time_steps,dropout)
+
+#     # # Preprocess data
+#     # ts_values = [torch.tensor(entry["ts_values"], dtype=torch.float32) for entry in train_data]
+#     # ts_indicators = [torch.tensor(entry["ts_indicators"], dtype=torch.float32) for entry in train_data]
+#     # ts_times = [torch.tensor(entry["ts_times"], dtype=torch.float32) for entry in train_data]
+#     # static_features = [torch.tensor(entry["static"], dtype=torch.float32) for entry in train_data]
+#     # labels = [torch.tensor(entry["labels"], dtype=torch.long) for entry in train_data]
+#     # # static_features = torch.tensor([entry["static"] for entry in train_data], dtype=torch.float32)
+#     # # labels = torch.tensor([entry["labels"] for entry in train_data], dtype=torch.long)
+
+#     # # Pad sequences to the same length
+#     # ts_values_padded = nn.utils.rnn.pad_sequence(ts_values, batch_first=True)
+#     # ts_indicators_padded = nn.utils.rnn.pad_sequence(ts_indicators, batch_first=True)
+#     # ts_times_padded = nn.utils.rnn.pad_sequence(ts_times, batch_first=True)
+
+#     # Create embeddings
+#     embedded_data = embedding_layer(ts_values_padded, ts_indicators_padded, ts_times_padded, static_features)
+
+#     return embedded_data, labels
+
+def preprocess_and_embed(preprocessed_data, config, dropout):
     """
-    Preprocess the train_data and embed it for model input.
+    Embed preprocessed data for model input.
 
     Parameters:
-        train_data: numpy array of dictionaries
-        config: MambaConfig object with model hyperparameters
+        preprocessed_data: A dataset object (e.g., train_pair, val_data, test_data) containing preprocessed data.
+        config: MambaConfig object with model hyperparameters.
+        dropout: Dropout rate.
 
     Returns:
         Embedded data and labels
     """
-    # pdb.set_trace()
-    max_time_steps = max(len(entry["ts_times"]) for entry in train_data)
-    num_features = train_data[0]["ts_values"].shape[1]
-    static_size = len(train_data[0]["static"])
+    max_time_steps = preprocessed_data.data_array.shape[1]  # Number of time steps
+    num_features = preprocessed_data.data_array.shape[2]  # Number of features
+    static_size = preprocessed_data.static_array.shape[1]  # Number of static features
 
-    embedding_layer = MambaEmbeddingLayer(config, num_features, static_size, max_time_steps,dropout)
+    # Initialize the embedding layer
+    embedding_layer = MambaEmbeddingLayer(config, num_features, static_size, max_time_steps, dropout)
 
-    # Preprocess data
-    ts_values = [torch.tensor(entry["ts_values"], dtype=torch.float32) for entry in train_data]
-    ts_indicators = [torch.tensor(entry["ts_indicators"], dtype=torch.float32) for entry in train_data]
-    ts_times = [torch.tensor(entry["ts_times"], dtype=torch.float32) for entry in train_data]
-    static_features = [torch.tensor(entry["static"], dtype=torch.float32) for entry in train_data]
-    labels = [torch.tensor(entry["labels"], dtype=torch.long) for entry in train_data]
-    # static_features = torch.tensor([entry["static"] for entry in train_data], dtype=torch.float32)
-    # labels = torch.tensor([entry["labels"] for entry in train_data], dtype=torch.long)
-
-    # Pad sequences to the same length
-    ts_values_padded = nn.utils.rnn.pad_sequence(ts_values, batch_first=True)
-    ts_indicators_padded = nn.utils.rnn.pad_sequence(ts_indicators, batch_first=True)
-    ts_times_padded = nn.utils.rnn.pad_sequence(ts_times, batch_first=True)
+    # Extract preprocessed data tensors
+    ts_values = preprocessed_data.data_array  # (Batch, Time, Features)
+    ts_indicators = preprocessed_data.sensor_mask_array  # (Batch, Time, Features)
+    ts_times = preprocessed_data.times_array  # (Batch, Time)
+    static_features = preprocessed_data.static_array  # (Batch, Static Features)
+    labels = preprocessed_data.label_array  # (Batch,)
 
     # Create embeddings
-    embedded_data = embedding_layer(ts_values_padded, ts_indicators_padded, ts_times_padded, static_features)
+    embedded_data = embedding_layer(ts_values, ts_indicators, ts_times, static_features)
 
-    return embedded_data, labels
+    return embedded_data,labels
 
 def get_vocab_size(embedding_layer: ConceptEmbedding) -> int:
     """

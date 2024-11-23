@@ -11,11 +11,13 @@ from mortality_part_preprocessing import load_pad_separate
 from mortality_classification import train_test
 from transformers.models.mamba.modeling_mamba import MambaForCausalLM
 from models.model_try import MambaFinetune
-from models.transformer import TransformerModel
-from models.seft import SEFTModel
-from models.grud import GRUDModel
-from models.ipnets import IPNetsModel
 
+from models.deep_set_attention import DeepSetAttentionModel
+from mortality_part_preprocessing import PairedDataset, MortalityDataset
+from models.regular_transformer import EncoderClassifierRegular
+from models.early_stopper import EarlyStopping
+from models.grud import GRUDModel
+from models.ip_nets import InterpolationPredictionModel
 
 @click.command()
 @click.option("--output_path", default="./ehr_classification_results/", help="Path to output folder")
@@ -59,7 +61,7 @@ def core_function(
     np.random.seed(0)
 
     # Prepare dataset
-    base_path_new = f"{base_path}/split_1"
+    base_path_new = f"{base_path}/split_1/split_1"
     train_pair, val_data, test_data = load_pad_separate(dataset_id, base_path_new, split_index=1)
 
     # DataLoaders
@@ -80,7 +82,7 @@ def core_function(
             classifier_dropout=dropout,
         )
     elif model_type == "transformer":
-        model = TransformerModel(
+        model = EncoderClassifierRegular(
             input_dim=train_pair.data_array.shape[-1],
             num_classes=num_labels,
             num_heads=heads,
@@ -90,7 +92,7 @@ def core_function(
             pooling=pooling,
         )
     elif model_type == "seft":
-        model = SEFTModel(
+        model = DeepSetAttentionModel(
             input_dim=train_pair.data_array.shape[-1],
             num_classes=num_labels,
             layers=layers,
@@ -106,7 +108,7 @@ def core_function(
             dropout=dropout,
         )
     elif model_type == "ipnets":
-        model = IPNetsModel(
+        model = InterpolationPredictionModel(
             input_dim=train_pair.data_array.shape[-1],
             num_classes=num_labels,
             dropout=dropout,

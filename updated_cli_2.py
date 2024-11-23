@@ -1,5 +1,5 @@
 from mortality_part_preprocessing import load_pad_separate
-from mortality_classification import train_test
+from updated_mortality_classification import train_test
 import os
 import click
 import torch
