@@ -2,6 +2,10 @@ import torch
 from torch import nn
 from transformers import MambaConfig
 import pdb
+from transformers.models.mamba.modeling_mamba import (
+    MambaCausalLMOutput,
+    MambaForCausalLM,
+)
 import numpy as np
 
 
@@ -51,7 +55,7 @@ class ConceptEmbedding(nn.Module):
 
 # Full embedding layer
 class MambaEmbeddingLayer(nn.Module):
-    def __init__(self, config: MambaConfig, num_features: int, static_size: int, max_time_steps: int):
+    def __init__(self, config: MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf").config, num_features: int, static_size: int, max_time_steps: int, dropout: float):
         super().__init__()
         self.num_features = num_features
         self.max_time_steps = max_time_steps
@@ -67,7 +71,7 @@ class MambaEmbeddingLayer(nn.Module):
         )
 
         self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=1e-12)
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, ts_values: torch.Tensor, ts_indicators: torch.Tensor, ts_times: torch.Tensor, static: torch.Tensor) -> torch.Tensor:
         # Time embeddings
@@ -93,7 +97,7 @@ class MambaEmbeddingLayer(nn.Module):
 
 
 # Preprocessing and embedding function
-def preprocess_and_embed(train_data, config):
+def preprocess_and_embed(train_data, config, dropout):
     """
     Preprocess the train_data and embed it for model input.
 
@@ -109,14 +113,16 @@ def preprocess_and_embed(train_data, config):
     num_features = train_data[0]["ts_values"].shape[1]
     static_size = len(train_data[0]["static"])
 
-    embedding_layer = MambaEmbeddingLayer(config, num_features, static_size, max_time_steps)
+    embedding_layer = MambaEmbeddingLayer(config, num_features, static_size, max_time_steps,dropout)
 
     # Preprocess data
     ts_values = [torch.tensor(entry["ts_values"], dtype=torch.float32) for entry in train_data]
     ts_indicators = [torch.tensor(entry["ts_indicators"], dtype=torch.float32) for entry in train_data]
     ts_times = [torch.tensor(entry["ts_times"], dtype=torch.float32) for entry in train_data]
-    static_features = torch.tensor([entry["static"] for entry in train_data], dtype=torch.float32)
-    labels = torch.tensor([entry["labels"] for entry in train_data], dtype=torch.long)
+    static_features = [torch.tensor(entry["static"], dtype=torch.float32) for entry in train_data]
+    labels = [torch.tensor(entry["labels"], dtype=torch.long) for entry in train_data]
+    # static_features = torch.tensor([entry["static"] for entry in train_data], dtype=torch.float32)
+    # labels = torch.tensor([entry["labels"] for entry in train_data], dtype=torch.long)
 
     # Pad sequences to the same length
     ts_values_padded = nn.utils.rnn.pad_sequence(ts_values, batch_first=True)

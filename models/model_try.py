@@ -249,8 +249,9 @@ class MambaFinetune(pl.LightningModule):
     def __init__(
         self,
         vocab_size : int,
-        pretrained_model: MambaForCausalLM,# change with our data ???
-        # pretrained_model: MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf"),
+        # pretrained_model: MambaForCausalLM,# change with our data ???
+        pretrained_model: MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf"),
+        train_data: 'numpy.ndarray',
         problem_type: str = "single_label_classification",
         num_labels: int = 2,
         num_tasks: int = 6,
@@ -282,6 +283,7 @@ class MambaFinetune(pl.LightningModule):
         self.multi_head = multi_head
         self.test_outputs = []
         self.vocab_size=vocab_size
+        self.train_data=train_data
 
 
         #from pretrain class
@@ -296,26 +298,25 @@ class MambaFinetune(pl.LightningModule):
         self.num_hidden_layers = num_hidden_layers
         self.expand = expand
         self.conv_kernel = conv_kernel
-        self.learning_rate = learning_rate
         self.dropout_prob = dropout_prob
         self.padding_idx = padding_idx
         self.cls_idx = cls_idx
         self.use_mambapy = use_mambapy
 
-        #???
-        self.config = MambaConfig(
-            vocab_size=self.vocab_size,
-            hidden_size=self.embedding_size,
-            state_size=self.state_size,
-            num_hidden_layers=self.num_hidden_layers,
-            expand=self.expand,
-            conv_kernel=self.conv_kernel,
-            pad_token_id=self.padding_idx,
-            bos_token_id=self.cls_idx,
-            eos_token_id=self.padding_idx,
-            use_mambapy=self.use_mambapy,
-        )
-        #self.config = pretrained_model.config
+        # #???
+        # self.config = MambaConfig(
+        #     vocab_size=self.vocab_size,
+        #     hidden_size=self.embedding_size,
+        #     state_size=self.state_size,
+        #     num_hidden_layers=self.num_hidden_layers,
+        #     expand=self.expand,
+        #     conv_kernel=self.conv_kernel,
+        #     pad_token_id=self.padding_idx,
+        #     bos_token_id=self.cls_idx,
+        #     eos_token_id=self.padding_idx,
+        #     use_mambapy=self.use_mambapy,
+        # )
+        self.config = pretrained_model.config
         self.config.num_labels = self.num_labels
         self.config.classifier_dropout = self.classifier_dropout
         self.config.problem_type = problem_type
@@ -341,7 +342,7 @@ class MambaFinetune(pl.LightningModule):
         #)
 
         #ERROR: Figure out how to import the data here!!
-        self.embeddings = preprocess_and_embed(self.pretrained_model, self.config)
+        self.embeddings = preprocess_and_embed(self.train_data, self.config, self.dropout_prob)
         self.model.backbone = self.pretrained_model.model.backbone # do we need this one?
 
     def _init_weights(self, module: torch.nn.Module) -> None:

@@ -25,6 +25,7 @@ def main(train_dataset, val_dataset):
     model = MambaFinetune(
         pretrained_model=pretrained_model,
         problem_type="single_label_classification",
+        train_data=train_dataset,
         num_labels=2,
         num_tasks=6,
         learning_rate=learning_rate,
@@ -37,6 +38,8 @@ def main(train_dataset, val_dataset):
     # Create dataloaders
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+
+    print(train_dataloader)
 
     # Initialize Trainer
     trainer = Trainer(
