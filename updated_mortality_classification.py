@@ -42,6 +42,17 @@ def train_test(
     test_dataloader = DataLoader(test_data, batch_size, shuffle=True, num_workers=16, collate_fn=val_test_collate_fn, pin_memory=True)
     val_dataloader = DataLoader(val_data, batch_size, shuffle=False, num_workers=16, collate_fn=val_test_collate_fn, pin_memory=True)
 
+    for batch in train_dataloader:
+        data, times, static, labels, mask, delta = batch
+        print(f"Batch data shape: {data.shape}")
+        print(f"Batch times shape: {times.shape}")
+        print(f"Batch static shape: {static.shape}")
+        print(f"Batch labels shape: {labels.shape}")
+        print(f"Batch mask shape: {mask.shape}")
+        print(f"Batch delta shape: {delta.shape}")
+        break
+
+    print(type(train_dataloader))
     # assign GPU
     if torch.cuda.is_available():
         dev = "cuda"
@@ -97,12 +108,14 @@ def train(
     sensor_count = test_batch[0].shape[1]
     static_size = test_batch[2].shape[1]
 
+    print(type(train_dataloader))
     # Initialize the model
     if model_type == "mamba":
         pretrained_model = MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf")
         model = MambaFinetune(
             pretrained_model=pretrained_model,
             train_data=train_dataloader.dataset,
+            train_data_loader=train_dataloader,
             problem_type="single_label_classification",
             num_labels=2,
             vocab_size=model_args.get("vocab_size", 9),

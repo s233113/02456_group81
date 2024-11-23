@@ -7,6 +7,7 @@ from transformers.models.mamba.modeling_mamba import (
     MambaForCausalLM,
 )
 import numpy as np
+from mortality_part_preprocessing import PairedDataset
 
 
 # Time embedding layer
@@ -134,7 +135,7 @@ class MambaEmbeddingLayer(nn.Module):
 
 #     return embedded_data, labels
 
-def preprocess_and_embed(preprocessed_data, config, dropout):
+def preprocess_and_embed(preprocessed_data, train_data_loader, config, dropout):
     """
     Embed preprocessed data for model input.
 
@@ -146,21 +147,56 @@ def preprocess_and_embed(preprocessed_data, config, dropout):
     Returns:
         Embedded data and labels
     """
-    max_time_steps = preprocessed_data.data_array.shape[1]  # Number of time steps
-    num_features = preprocessed_data.data_array.shape[2]  # Number of features
-    static_size = preprocessed_data.static_array.shape[1]  # Number of static features
+
+    max_time_steps_pos = np.shape(preprocessed_data.dataset_pos.times_array)[1] # Number of time steps
+    num_features_pos = np.shape(preprocessed_data.dataset_pos.data_array)[1]  # Number of features
+    static_size_pos = np.shape(preprocessed_data.dataset_pos.static_array)[1]  # Number of static features
+   
+    max_time_steps_neg = np.shape(preprocessed_data.dataset_neg.times_array)[1] # Number of time steps
+    num_features_neg = np.shape(preprocessed_data.dataset_neg.data_array)[1]  # Number of features
+    static_size_neg = np.shape(preprocessed_data.dataset_neg.static_array)[1]  # Number of static features
+    
+    max_time_steps=np.maximum(max_time_steps_pos, max_time_steps_neg)
+    num_features=np.maximum(num_features_neg, num_features_pos)
+    static_size=np.maximum(static_size_neg, static_size_pos)
+
+    print(max_time_steps)
+    print(num_features)
+    print(static_size)
+
+    data, times, static, labels, mask, delta=next(iter(train_data_loader))
+
+    max_time_steps=times.shape[1]
+    num_features=data.shape[1]
+    static_size=static.shape[1]
+
+    print(max_time_steps)
+    print(num_features)
+    print(static_size)
 
     # Initialize the embedding layer
     embedding_layer = MambaEmbeddingLayer(config, num_features, static_size, max_time_steps, dropout)
 
+    # test=PairedDataset.paired_collate_fn(batch(preprocessed_data.dataset_neg, preprocessed_data.dataset_pos))
     # Extract preprocessed data tensors
-    ts_values = preprocessed_data.data_array  # (Batch, Time, Features)
-    ts_indicators = preprocessed_data.sensor_mask_array  # (Batch, Time, Features)
-    ts_times = preprocessed_data.times_array  # (Batch, Time)
-    static_features = preprocessed_data.static_array  # (Batch, Static Features)
-    labels = preprocessed_data.label_array  # (Batch,)
+    # ts_values = preprocessed_data.dataset_neg.data_array  # (Batch, Time, Features)
+    # ts_indicators = preprocessed_data.dataset_neg.sensor_mask_array  # (Batch, Time, Features)
+    # ts_times = preprocessed_data.dataset_neg.times_array  # (Batch, Time)
+    # static_features = preprocessed_data.dataset_neg.static_array  # (Batch, Static Features)
+    # labels = preprocessed_data.dataset_neg.label_array  # (Batch,)
 
+    data, times, static, labels, mask, delta=next(iter(train_data_loader))
+    ts_values = data  # (Batch, Time, Features)
+    ts_indicators = mask  # (Batch, Time, Features)
+    ts_times = times  # (Batch, Time)
+    static_features = static  # (Batch, Static Features)
+    labels = labels  # (Batch,)
+
+
+    print(ts_values.shape)
     # Create embeddings
+
+    #ERROR HERE
     embedded_data = embedding_layer(ts_values, ts_indicators, ts_times, static_features)
 
     return embedded_data,labels

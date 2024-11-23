@@ -252,6 +252,7 @@ class MambaFinetune(pl.LightningModule):
         # pretrained_model: MambaForCausalLM,# change with our data ???
         pretrained_model: MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf"),
         train_data: 'numpy.ndarray',
+        train_data_loader: 'torch.utils.data.dataloader.DataLoader',
         problem_type: str = "single_label_classification",
         num_labels: int = 2,
         num_tasks: int = 6,
@@ -284,6 +285,7 @@ class MambaFinetune(pl.LightningModule):
         self.test_outputs = []
         self.vocab_size=vocab_size
         self.train_data=train_data
+        self.train_data_loader=train_data_loader
 
 
         #from pretrain class
@@ -342,7 +344,7 @@ class MambaFinetune(pl.LightningModule):
         #)
 
         #ERROR: Figure out how to import the data here!!
-        self.embeddings = preprocess_and_embed(self.train_data, self.config, self.dropout_prob)
+        self.embeddings = preprocess_and_embed(self.train_data, self.train_data_loader, self.config, self.dropout_prob)
         self.model.backbone = self.pretrained_model.model.backbone # do we need this one?
 
     def _init_weights(self, module: torch.nn.Module) -> None:
