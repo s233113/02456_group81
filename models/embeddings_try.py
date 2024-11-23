@@ -128,6 +128,16 @@ def preprocess_and_embed(train_data, config):
 
     return embedded_data, labels
 
-
-train_data = np.load('../split_1/train_physionet2012_1.npy', allow_pickle=True)
-print(preprocess_and_embed(train_data, MambaConfig))
+def get_vocab_size(embedding_layer: ConceptEmbedding) -> int:
+    """
+    Return the number of possible tokens in the vocabulary.
+ 
+    Parameters:
+        embedding_layer (ConceptEmbedding): The concept embedding layer.
+ 
+    Returns:
+        int: Number of tokens in the vocabulary.
+    """
+    return embedding_layer.embedding.num_embeddings
+# train_data = np.load('../split_1/train_physionet2012_1.npy', allow_pickle=True)
+# print(preprocess_and_embed(train_data, MambaConfig))
