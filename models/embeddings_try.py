@@ -51,6 +51,12 @@ class ConceptEmbedding(nn.Module):
         self.embedding = nn.Embedding(num_features, embedding_size)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        print("inputs shape in concept embedding;")
+        print(inputs.shape)
+
+        print(inputs)
+        print(inputs.max.item())
+        print(inputs.long.max.item())
         return self.embedding(inputs.long())
 
 
@@ -62,16 +68,16 @@ class MambaEmbeddingLayer(nn.Module):
         self.max_time_steps = max_time_steps
         self.embedding_size = config.hidden_size
 
-        self.time_embedding = TimeEmbeddingLayer(embedding_size=32, is_time_delta=True)
-        self.feature_embedding = ConceptEmbedding(num_features=num_features, embedding_size=config.hidden_size)
-        self.static_embedding = StaticEmbedding(input_size=static_size, output_size=config.hidden_size)
+        self.time_embedding = TimeEmbeddingLayer(embedding_size=max_time_steps, is_time_delta=True) #debug
+        self.feature_embedding = ConceptEmbedding(num_features=num_features, embedding_size=embedding_size)
+        self.static_embedding = StaticEmbedding(input_size=static_size, output_size=embedding_size)
 
         self.scale_layer = nn.Linear(
-            config.hidden_size + 32,  # Combine feature and time embeddings
-            config.hidden_size,
+            embedding_size + max_time_steps,  # Combine feature and time embeddings
+            embedding_size,
         )
 
-        self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=1e-12)
+        self.LayerNorm = nn.LayerNorm(embedding_size, eps=1e-12)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, ts_values: torch.Tensor, ts_indicators: torch.Tensor, ts_times: torch.Tensor, static: torch.Tensor) -> torch.Tensor:
@@ -148,33 +154,53 @@ def preprocess_and_embed(preprocessed_data, train_data_loader, config, dropout):
         Embedded data and labels
     """
 
-    max_time_steps_pos = np.shape(preprocessed_data.dataset_pos.times_array)[1] # Number of time steps
-    num_features_pos = np.shape(preprocessed_data.dataset_pos.data_array)[1]  # Number of features
-    static_size_pos = np.shape(preprocessed_data.dataset_pos.static_array)[1]  # Number of static features
+    # max_time_steps_pos = np.shape(preprocessed_data.dataset_pos.times_array)[1] # Number of time steps
+    # num_features_pos = np.shape(preprocessed_data.dataset_pos.data_array)[1]  # Number of features
+    # static_size_pos = np.shape(preprocessed_data.dataset_pos.static_array)[1]  # Number of static features
    
-    max_time_steps_neg = np.shape(preprocessed_data.dataset_neg.times_array)[1] # Number of time steps
-    num_features_neg = np.shape(preprocessed_data.dataset_neg.data_array)[1]  # Number of features
-    static_size_neg = np.shape(preprocessed_data.dataset_neg.static_array)[1]  # Number of static features
+    # max_time_steps_neg = np.shape(preprocessed_data.dataset_neg.times_array)[1] # Number of time steps
+    # num_features_neg = np.shape(preprocessed_data.dataset_neg.data_array)[1]  # Number of features
+    # static_size_neg = np.shape(preprocessed_data.dataset_neg.static_array)[1]  # Number of static features
     
-    max_time_steps=np.maximum(max_time_steps_pos, max_time_steps_neg)
-    num_features=np.maximum(num_features_neg, num_features_pos)
-    static_size=np.maximum(static_size_neg, static_size_pos)
+    # max_time_steps=np.maximum(max_time_steps_pos, max_time_steps_neg)
+    # num_features=np.maximum(num_features_neg, num_features_pos)
+    # static_size=np.maximum(static_size_neg, static_size_pos)
 
-    print(max_time_steps)
-    print(num_features)
-    print(static_size)
+    # print(max_time_steps)
+    # print(num_features)
+    # print(static_size)
 
     data, times, static, labels, mask, delta=next(iter(train_data_loader))
 
+    ts_values = data  # (Batch, Time, Features)
+    ts_indicators = mask  # (Batch, Time, Features)
+    ts_times = times  # (Batch, Time)
+    static_features = static  # (Batch, Static Features)
+    labels = labels  # (Batch,)
+
+    print("times shape:")
+    print(times.shape)
+    print("data shape:")
+    print(data.shape)
+    print("static shape:")
+    print(static.shape)
     max_time_steps=times.shape[1]
-    num_features=data.shape[1]
+    #num_features=data.shape[1]
+    num_features = int(ts_values.max().item() +1)
+
+    
     static_size=static.shape[1]
 
+    print("max time steps, num features and static size:")
     print(max_time_steps)
     print(num_features)
     print(static_size)
 
+    print("hidden size config:")
+    print(config.hidden_size)
+
     # Initialize the embedding layer
+    
     embedding_layer = MambaEmbeddingLayer(config, num_features, static_size, max_time_steps, dropout)
 
     # test=PairedDataset.paired_collate_fn(batch(preprocessed_data.dataset_neg, preprocessed_data.dataset_pos))
@@ -185,15 +211,20 @@ def preprocess_and_embed(preprocessed_data, train_data_loader, config, dropout):
     # static_features = preprocessed_data.dataset_neg.static_array  # (Batch, Static Features)
     # labels = preprocessed_data.dataset_neg.label_array  # (Batch,)
 
-    data, times, static, labels, mask, delta=next(iter(train_data_loader))
-    ts_values = data  # (Batch, Time, Features)
-    ts_indicators = mask  # (Batch, Time, Features)
-    ts_times = times  # (Batch, Time)
-    static_features = static  # (Batch, Static Features)
-    labels = labels  # (Batch,)
+    #data, times, static, labels, mask, delta=next(iter(train_data_loader))
+    
+    print("dimensions before entering embedding layer")
+    print(data.shape)
+    print(mask.shape)
+    print(times.shape)
+    print(static.shape)
+    print(labels.shape)
+    print("entering embedding layer line 219")
 
+    print("Maximum index in ts_values:", ts_values.max().item())
+    print("Minimum index in ts_values:", ts_values.min().item())
+    print("Embedding vocabulary size (num_features):", num_features)
 
-    print(ts_values.shape)
     # Create embeddings
 
     #ERROR HERE
