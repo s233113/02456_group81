@@ -45,20 +45,45 @@ class StaticEmbedding(nn.Module):
 
 
 # Feature embedding layer
+# class ConceptEmbedding(nn.Module):
+#     def __init__(self, num_features: int, embedding_size: int):
+#         super().__init__()
+#         self.embedding = nn.Embedding(num_features, embedding_size)
+
+#     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+#         print("inputs shape in concept embedding;")
+#         print(inputs.shape)
+
+#         print(inputs)
+#         print(torch.max(inputs))
+#         print(torch.max(inputs.long()))
+#         return self.embedding(inputs.long())
+
 class ConceptEmbedding(nn.Module):
-    def __init__(self, num_features: int, embedding_size: int):
-        super().__init__()
-        self.embedding = nn.Embedding(num_features, embedding_size)
+    def __init__(self, num_features, embedding_size, dropout_prob=0.5):
+        super(ConceptEmbedding, self).__init__()
+        
+        # Define the linear layer
+        self.fc = nn.Linear(num_features, embedding_size)  # num_features -> embedding_size
+        self.dropout = nn.Dropout(dropout_prob)
 
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        print("inputs shape in concept embedding;")
-        print(inputs.shape)
+    def forward(self, inputs):
+        # Assuming input shape is [batch_size, num_features, time_steps]
+        batch_size, num_features, time_steps = inputs.size()
+        
+        # Reshape inputs to [batch_size * time_steps, num_features] for linear layer
+        inputs_reshaped = inputs.reshape(-1, num_features)  # Use reshape instead of view
+        
+        # Pass through the fully connected layer
+        embeddings_reshaped = self.fc(inputs_reshaped)
+        
+        # Apply dropout
+        embeddings_reshaped = self.dropout(embeddings_reshaped)
+        
+        # Reshape back to [batch_size, time_steps, embedding_size]
+        embeddings = embeddings_reshaped.reshape(batch_size, time_steps, -1)
 
-        print(inputs)
-        print(inputs.max.item())
-        print(inputs.long.max.item())
-        return self.embedding(inputs.long())
-
+        return embeddings
 
 # Full embedding layer
 class MambaEmbeddingLayer(nn.Module):
@@ -67,41 +92,77 @@ class MambaEmbeddingLayer(nn.Module):
         self.num_features = num_features
         self.max_time_steps = max_time_steps
         self.embedding_size = config.hidden_size
+        #self.embedding_size = 128
+
 
         self.time_embedding = TimeEmbeddingLayer(embedding_size=max_time_steps, is_time_delta=True) #debug
-        self.feature_embedding = ConceptEmbedding(num_features=num_features, embedding_size=embedding_size)
-        self.static_embedding = StaticEmbedding(input_size=static_size, output_size=embedding_size)
+        #self.feature_embedding = ConceptEmbedding(num_features=128, embedding_size=max_time_steps)
+        self.feature_embedding = ConceptEmbedding(num_features=num_features, embedding_size=self.embedding_size)
+        self.static_embedding = StaticEmbedding(input_size=static_size, output_size=self.embedding_size)
 
         self.scale_layer = nn.Linear(
-            embedding_size + max_time_steps,  # Combine feature and time embeddings
-            embedding_size,
+            self.embedding_size + max_time_steps,  # Combine feature and time embeddings
+            self.embedding_size,
         )
 
-        self.LayerNorm = nn.LayerNorm(embedding_size, eps=1e-12)
+        self.LayerNorm = nn.LayerNorm(self.embedding_size, eps=1e-12)
         self.dropout = nn.Dropout(dropout)
 
+    # def forward(self, ts_values: torch.Tensor, ts_indicators: torch.Tensor, ts_times: torch.Tensor, static: torch.Tensor) -> torch.Tensor:
+    #     # Time embeddings
+    #     time_embeds = self.time_embedding(ts_times)
+
+    #     # Feature embeddings
+    #     ts_values_embedded = self.feature_embedding(ts_values)
+    #     print("before ts_values_embedded: ")
+    #     print(ts_values_embedded.shape)
+    #     print(ts_indicators.shape)
+
+    #      # Align ts_indicators for multiplication
+    #     ts_indicators = ts_indicators.permute(0, 2, 1).unsqueeze(-1)  # [batch_size, time_steps, num_features, 1]
+        
+    #     print("after unsqueze" , ts_indicators.shape)
+
+    #     ts_values_embedded = ts_values_embedded * ts_indicators  # Element-wise multiplication (broadcasting)
+    #     #ts_values_embedded = ts_values_embedded * ts_indicators.unsqueeze(-1)
+
+    #     # Combine time and feature embeddings
+    #     ts_combined = torch.cat((ts_values_embedded, time_embeds), dim=-1)
+    #     ts_embeds = self.scale_layer(ts_combined)
+
+    #     # Static embeddings
+    #     static_embeds = self.static_embedding(static)
+
+    #     # Add static embeddings and normalize
+    #     combined_embeds = ts_embeds + static_embeds.unsqueeze(1)
+    #     combined_embeds = self.LayerNorm(combined_embeds)
+    #     combined_embeds = self.dropout(combined_embeds)
+
+    #     return combined_embeds
+
     def forward(self, ts_values: torch.Tensor, ts_indicators: torch.Tensor, ts_times: torch.Tensor, static: torch.Tensor) -> torch.Tensor:
+        # Apply mask to ts_values before embedding
+        ts_values_masked = ts_values * ts_indicators  # Element-wise masking [128, 37, 171]
+        
         # Time embeddings
-        time_embeds = self.time_embedding(ts_times)
+        time_embeds = self.time_embedding(ts_times)  # [128, 171, time_embedding_dim]
 
         # Feature embeddings
-        ts_values_embedded = self.feature_embedding(ts_values)
-        ts_values_embedded = ts_values_embedded * ts_indicators.unsqueeze(-1)
+        ts_values_embedded = self.feature_embedding(ts_values_masked)  # [128, 171, 768]
 
         # Combine time and feature embeddings
-        ts_combined = torch.cat((ts_values_embedded, time_embeds), dim=-1)
+        ts_combined = torch.cat((ts_values_embedded, time_embeds), dim=-1)  # [128, 171, 768 + time_embedding_dim]
         ts_embeds = self.scale_layer(ts_combined)
 
         # Static embeddings
-        static_embeds = self.static_embedding(static)
+        static_embeds = self.static_embedding(static)  # [128, hidden_size]
 
         # Add static embeddings and normalize
-        combined_embeds = ts_embeds + static_embeds.unsqueeze(1)
+        combined_embeds = ts_embeds + static_embeds.unsqueeze(1)  # Broadcast static to time dimension
         combined_embeds = self.LayerNorm(combined_embeds)
         combined_embeds = self.dropout(combined_embeds)
 
         return combined_embeds
-
 
 # # Preprocessing and embedding function
 # def preprocess_and_embed(train_data, config, dropout):
@@ -178,6 +239,11 @@ def preprocess_and_embed(preprocessed_data, train_data_loader, config, dropout):
     static_features = static  # (Batch, Static Features)
     labels = labels  # (Batch,)
 
+    print("ts_values:")
+    print("type: ", type(ts_values))
+    print("shape: ", ts_values.shape)
+    print(ts_values)
+
     print("times shape:")
     print(times.shape)
     print("data shape:")
@@ -185,8 +251,8 @@ def preprocess_and_embed(preprocessed_data, train_data_loader, config, dropout):
     print("static shape:")
     print(static.shape)
     max_time_steps=times.shape[1]
-    #num_features=data.shape[1]
-    num_features = int(ts_values.max().item() +1)
+    num_features=data.shape[1]
+    #num_features = int(ts_values.max().item() +1)
 
     
     static_size=static.shape[1]

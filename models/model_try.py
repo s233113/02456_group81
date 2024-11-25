@@ -345,7 +345,8 @@ class MambaFinetune(pl.LightningModule):
 
         #ERROR: Figure out how to import the data here!!
         self.embeddings = preprocess_and_embed(self.train_data, self.train_data_loader, self.config, self.dropout_prob)
-        self.model.backbone = self.pretrained_model.model.backbone # do we need this one?
+        #self.model.backbone = self.pretrained_model.backbone # do we need this one?
+        self.model.backbone = pretrained_model(config=self.config)
 
     def _init_weights(self, module: torch.nn.Module) -> None:
         """Initialize the weights."""
@@ -380,17 +381,17 @@ class MambaFinetune(pl.LightningModule):
     ) -> Union[Tuple[torch.Tensor, ...], MambaSequenceClassifierOutput]:
         """Forward pass for the model."""
         #concept_ids, type_ids, time_stamps, ages, visit_orders, visit_segments = inputs (???)
-        ts_values_pad, ts_indicators_pad, ts_times_pad, static_features = inputs
+        ts_values, ts_indicators, ts_times, static_features = inputs
         #order taken from forward method in embeddings_try (???)
-        inputs_embeds = self.embeddings(
-            ts_values=ts_values_pad,
-            ts_indicators=ts_indicators_pad,
-            ts_times=ts_times_pad,
+        inputs_embeds = self.embeddings(  #debug , extract the embeddings
+            ts_values=ts_values,
+            ts_indicators=ts_indicators,
+            ts_times=ts_times,
             static=static_features,
         )
 
         return self.model(
-            input_ids=ts_indicators_pad, #based on what we said earlier(here there was concepts_ids) (???)
+            input_ids=None, #based on what we said earlier(here there was concepts_ids) (???)
             inputs_embeds=inputs_embeds,
             labels=labels,
             task_indices=task_indices,
