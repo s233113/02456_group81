@@ -100,8 +100,8 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
     )
     def forward(
         self,
-        input_ids: torch.LongTensor = None,
-        inputs_embeds: Optional[torch.FloatTensor] = None,
+        #input_ids: torch.LongTensor = None,
+        inputs_embeds: torch.FloatTensor = None,
         labels: Optional[torch.LongTensor] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
@@ -114,34 +114,34 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
 
         Returns:
         """
-        if inputs_embeds is not None:
-            sequence_outputs = self.backbone(
-                input_ids=None,
-                inputs_embeds=inputs_embeds,
-                output_hidden_states=output_hidden_states,
-                return_dict=return_dict,
-            )
-        else:
-            sequence_outputs = self.backbone(
-                input_ids=input_ids,
-                inputs_embeds=None,
-                output_hidden_states=output_hidden_states,
-                return_dict=return_dict,
-            )
+        #if inputs_embeds is not None:
+         #   sequence_outputs = self.backbone(
+           #     input_ids=None,
+          #      inputs_embeds=inputs_embeds,
+            #    output_hidden_states=output_hidden_states,
+             #   return_dict=return_dict,
+            #)
+        #lse:
+        #    sequence_outputs = self.backbone(
+         #       input_ids=input_ids,
+          #      inputs_embeds=None,
+           #     output_hidden_states=output_hidden_states,
+            #    return_dict=return_dict,
+            #)
         last_hidden_states = sequence_outputs[0]
         batch_size = last_hidden_states.shape[0]
 
         # Pool the hidden states for the last tokens before padding
         # to use for classification
-        last_token_indexes = (
-            torch.eq(input_ids, self.config.pad_token_id).int().argmax(-1) - 1
-        )
-        pooled_last_hidden_states = last_hidden_states[
-            torch.arange(batch_size, device=last_hidden_states.device),
-            last_token_indexes,
-        ]
+        #last_token_indexes = (
+         #   torch.eq(input_ids, self.config.pad_token_id).int().argmax(-1) - 1
+        #)
+        #pooled_last_hidden_states = last_hidden_states[
+         #   torch.arange(batch_size, device=last_hidden_states.device),
+         #   last_token_indexes,
+        #]
 
-        logits = self.classifier(pooled_last_hidden_states)
+        logits = self.classifier(inputs_embeds)
 
         loss = None
         if labels is not None:

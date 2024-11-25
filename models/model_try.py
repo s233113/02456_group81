@@ -391,7 +391,7 @@ class MambaFinetune(pl.LightningModule):
         )
 
         return self.model(
-            input_ids=None, #based on what we said earlier(here there was concepts_ids) (???)
+            #input_ids=None, #based on what we said earlier(here there was concepts_ids) (???)
             inputs_embeds=inputs_embeds,
             labels=labels,
             task_indices=task_indices,
