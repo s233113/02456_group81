@@ -141,26 +141,49 @@ class MambaEmbeddingLayer(nn.Module):
     #     return combined_embeds
 
     def forward(self, ts_values: torch.Tensor, ts_indicators: torch.Tensor, ts_times: torch.Tensor, static: torch.Tensor) -> torch.Tensor:
+        
+        print("before embedding")
+        print("ts values") 
+        print(ts_values.shape) #128, 37, 171:  batch size, variables, time steps
+        print("ts_indicators")
+        print(ts_indicators.shape)
+
+
         # Apply mask to ts_values before embedding
         ts_values_masked = ts_values * ts_indicators  # Element-wise masking [128, 37, 171]
         
+        print("ts values masked:")
+        print(ts_values_masked.shape)
         # Time embeddings
-        time_embeds = self.time_embedding(ts_times)  # [128, 171, time_embedding_dim]
+        time_embeds = self.time_embedding(ts_times) 
+        print("time embeddings")
+        print(time_embeds.shape)
 
         # Feature embeddings
-        ts_values_embedded = self.feature_embedding(ts_values_masked)  # [128, 171, 768]
+        ts_values_embedded = self.feature_embedding(ts_values_masked) 
 
+
+        print("ts values embeddings: ")
+        print(ts_values_embedded.shape) 
         # Combine time and feature embeddings
-        ts_combined = torch.cat((ts_values_embedded, time_embeds), dim=-1)  # [128, 171, 768 + time_embedding_dim]
+        ts_combined = torch.cat((ts_values_embedded, time_embeds), dim=-1)  
         ts_embeds = self.scale_layer(ts_combined)
 
+        print("ts combined:")
+        print(ts_combined.shape)
+
         # Static embeddings
-        static_embeds = self.static_embedding(static)  # [128, hidden_size]
+        static_embeds = self.static_embedding(static)  
+        print("static embeddings")
+        print(static_embeds.shape)
 
         # Add static embeddings and normalize
         combined_embeds = ts_embeds + static_embeds.unsqueeze(1)  # Broadcast static to time dimension
         combined_embeds = self.LayerNorm(combined_embeds)
         combined_embeds = self.dropout(combined_embeds)
+
+        print("combined embeddings")
+        print(combined_embeds.shape)
 
         return combined_embeds
 
