@@ -346,7 +346,7 @@ class MambaFinetune(pl.LightningModule):
         #ERROR: Figure out how to import the data here!!
         self.embeddings = preprocess_and_embed(self.train_data, self.train_data_loader, self.config, self.dropout_prob)
         #self.model.backbone = self.pretrained_model.backbone # do we need this one?
-        self.model.backbone = pretrained_model(config=self.config)
+        #self.model.backbone = pretrained_model(config=self.config)
 
     def _init_weights(self, module: torch.nn.Module) -> None:
         """Initialize the weights."""

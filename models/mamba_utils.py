@@ -86,7 +86,7 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
         super().__init__(config)
         self.num_labels = config.num_labels
         self.config = config
-        self.backbone = MambaModel(config)
+        #self.backbone = MambaModel(config)
         self.classifier = MambaClassificationHead(config)
 
         # Initialize weights and apply final processing
