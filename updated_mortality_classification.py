@@ -183,76 +183,102 @@ def train(
             data, times, static, labels, mask, delta = batch
 
 
-            if model_type != "grud" :
-                data, static, times, mask, delta = (
-                    data.to(device), static.to(device), times.to(device),
-                    mask.to(device), delta.to(device)
-                )
-                if model_type=="mamba":
-                    labels=labels.to(device)
+            if (data.shape[0]==186):
+                if model_type != "grud" :
+                    data, static, times, mask, delta = (
+                        data.to(device), static.to(device), times.to(device),
+                        mask.to(device), delta.to(device)
+                    )
+                    if model_type=="mamba":
+                        labels=labels.to(device)
 
-            optimizer.zero_grad()
+                optimizer.zero_grad()
 
-            #Call the model differently depending on if it's mamba
+                #Call the model differently depending on if it's mamba
 
-            if model_type == "mamba":
-                input_mamba: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] = (data, mask, times, static)
+                if model_type == "mamba":
+                    input_mamba: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] = (data, mask, times, static)
 
-                # input_mamba=Tuple[data, mask, times, static]
-                model = model.to(device)
-                loss, logits = model(inputs=input_mamba, labels=labels)
-                predictions = torch.argmax(logits, dim=1)
-            else:
-                predictions = model(
-                    x=data, static=static, time=times, sensor_mask=mask, delta=delta
-                )
+                    # input_mamba=Tuple[data, mask, times, static]
+                    model = model.to(device)
+                    loss, logits = model(inputs=input_mamba, labels=labels)
+                    predictions = torch.argmax(logits, dim=1)
+                else:
+                    predictions = model(
+                        x=data, static=static, time=times, sensor_mask=mask, delta=delta
+                    )
 
 
-            if type(predictions) == tuple:
-                predictions, recon_loss = predictions
-            else:
-                recon_loss = 0
-            
-            if model_type!="mamba":
-                predictions = predictions.squeeze(-1)
+                if type(predictions) == tuple:
+                    predictions, recon_loss = predictions
+                else:
+                    recon_loss = 0
+                
+                if model_type!="mamba":
+                    predictions = predictions.squeeze(-1)
 
-            if model_type == "mamba":
-                loss = criterion(logits.squeeze(-1), labels) + recon_loss
-            else:
-                loss = criterion(predictions.cpu(), labels) + recon_loss
+                if model_type == "mamba":
+                    loss = criterion(logits.squeeze(-1), labels) + recon_loss
+                else:
+                    loss = criterion(predictions.cpu(), labels) + recon_loss
 
-            loss_list.append(loss.item())
-            loss.backward()
-            optimizer.step()
+                loss_list.append(loss.item())
+                loss.backward(retain_graph=True)
+                optimizer.step()
 
         accum_loss = np.mean(loss_list)
 
         # Validation
         model.eval().to(device)
-        labels_list, predictions_list = torch.LongTensor([]), torch.FloatTensor([])
+        labels_list, predictions_list, logits_list = torch.LongTensor([]), torch.FloatTensor([]), torch.FloatTensor([])
 
         with torch.no_grad():
             for batch in val_dataloader:
                 data, times, static, labels, mask, delta = batch
-                labels_list = torch.cat((labels_list, labels), dim=0)
-                if model_type != "grud":
-                    data, static, times, mask, delta = (
-                        data.to(device), static.to(device), times.to(device),
-                        mask.to(device), delta.to(device)
-                    )
-                predictions = model(
-                    x=data, static=static, time=times, sensor_mask=mask, delta=delta
-                )
-                if type(predictions) == tuple:
-                    predictions, _ = predictions
-                predictions = predictions.squeeze(-1)
-                predictions_list = torch.cat((predictions_list, predictions.cpu()), dim=0)
 
-            probs = torch.nn.functional.softmax(predictions_list, dim=1)
-            auc_score = metrics.roc_auc_score(labels_list, probs[:, 1])
-            aupr_score = metrics.average_precision_score(labels_list, probs[:, 1])
+                if data.shape[0]==186:
+                    labels_list = torch.cat((labels_list, labels), dim=0)
+                    if model_type != "grud":
+                        data, static, times, mask, delta = (
+                            data.to(device), static.to(device), times.to(device),
+                            mask.to(device), delta.to(device)
+                        )
+                    
+                    if model_type == "mamba":
+                        labels=labels.to(device)
+                        input_mamba: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] = (data, mask, times, static)
+                        model = model.to(device)
+                        loss, logits = model(inputs=input_mamba, labels=labels)
+                        predictions = torch.argmax(logits, dim=1)
+                    else:
+                        predictions = model(
+                            x=data, static=static, time=times, sensor_mask=mask, delta=delta
+                        )
+                    
+                    if type(predictions) == tuple:
+                        predictions, _ = predictions
 
-        val_loss = criterion(predictions_list.cpu(), labels_list)
+                    if model_type=="mamba":
+                        logits_list = torch.cat((logits_list, logits.squeeze(-1).cpu()), dim=0)
+                    else:
+                        predictions = predictions.squeeze(-1)
+                        predictions_list = torch.cat((predictions_list, predictions.cpu()), dim=0)
+
+
+
+            if model_type=="mamba":
+                probs = torch.nn.functional.softmax(logits_list, dim=1)
+                auc_score = metrics.roc_auc_score(labels_list, probs[:, 1])
+                aupr_score = metrics.average_precision_score(labels_list, probs[:, 1])
+            else:
+                probs = torch.nn.functional.softmax(predictions_list, dim=1)
+                auc_score = metrics.roc_auc_score(labels_list, probs[:, 1])
+                aupr_score = metrics.average_precision_score(labels_list, probs[:, 1])
+
+        if model_type=="mamba":
+            val_loss = criterion(logits_list.cpu(), labels_list)
+        else:
+            val_loss = criterion(predictions_list.cpu(), labels_list)
 
         # Log and early stopping
         with open(f"{output_path}/training_log.csv", "a") as train_log:
@@ -306,28 +332,50 @@ def test(test_dataloader, output_path, device, model_type, model, **kwargs):
     model.load_state_dict(torch.load(f"{output_path}/checkpoint.pt"))
     model.eval().to(device)
 
-    labels_list, predictions_list = torch.LongTensor([]), torch.FloatTensor([])
+    labels_list, predictions_list, logits_list = torch.LongTensor([]), torch.FloatTensor([]), torch.FloatTensor([])
 
     with torch.no_grad():
         for batch in test_dataloader:
             data, times, static, labels, mask, delta = batch
-            labels_list = torch.cat((labels_list, labels), dim=0)
-            if model_type != "grud":
-                data, static, times, mask, delta = (
-                    data.to(device), static.to(device), times.to(device),
-                    mask.to(device), delta.to(device)
-                )
-            predictions = model(
-                x=data, static=static, time=times, sensor_mask=mask, delta=delta
-            )
-            if type(predictions) == tuple:
-                predictions, _ = predictions
-            predictions = predictions.squeeze(-1)
-            predictions_list = torch.cat((predictions_list, predictions.cpu()), dim=0)
+            if data.shape[0]==186:
+                labels_list = torch.cat((labels_list, labels), dim=0)
+                if model_type != "grud":
+                    data, static, times, mask, delta = (
+                        data.to(device), static.to(device), times.to(device),
+                        mask.to(device), delta.to(device)
+                    )
+                    
+                if model_type == "mamba":
+                    labels=labels.to(device)
+                    input_mamba: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] = (data, mask, times, static)
 
-    loss = criterion(predictions_list.cpu(), labels_list)
+                    # input_mamba=Tuple[data, mask, times, static]
+                    model = model.to(device)
+                    loss, logits = model(inputs=input_mamba, labels=labels)
+                    predictions = torch.argmax(logits, dim=1)
+                else:
+                    predictions = model(
+                        x=data, static=static, time=times, sensor_mask=mask, delta=delta
+                    )
+                if type(predictions) == tuple:
+                    predictions, _ = predictions
+                
+                
+                predictions = predictions.squeeze(-1)
+                predictions_list = torch.cat((predictions_list, predictions.cpu()), dim=0)
+                logits_list = torch.cat((logits_list, logits.cpu()), dim=0)
+    if model_type!="mamba":
+        loss = criterion(predictions_list.cpu(), labels_list)
+    else:
+        loss = criterion(logits_list.cpu(), labels_list)
     print(f"Test Loss: {loss}")
-    probs = torch.nn.functional.softmax(predictions_list, dim=1)
+
+    if model_type=="mamba":
+        probs = torch.nn.functional.softmax(logits_list, dim=1)
+    else:
+        probs = torch.nn.functional.softmax(predictions_list, dim=1)
+                
+    # probs = torch.nn.functional.softmax(predictions_list, dim=1)
 
     results = metrics.classification_report(
         labels_list, torch.argmax(probs, dim=1), output_dict=True  # predictions_list
