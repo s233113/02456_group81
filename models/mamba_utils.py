@@ -65,8 +65,9 @@ class MambaClassificationHead(nn.Module):
 
     def forward(self, features, **kwargs):
         """Forward pass."""
-        x = features[0]  # Pooling is done by the forward pass
+        x = features  # Pooling is done by the forward pass
         print("Hello forward loop")
+        print(x.shape)
         x = self.dropout(x)
         x = self.dense(x)
         x = ACT2FN[self.config.hidden_act](x)
@@ -143,36 +144,43 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
         #]
 
         logits = self.classifier(inputs_embeds)
+        print("dimension of logits in mamba_utils")
+        print(logits.shape)
 
         loss = None
-        if labels is not None:
-            if self.config.problem_type is None:
-                if self.num_labels == 1:
-                    self.config.problem_type = "regression"
-                elif self.num_labels > 1 and (labels.dtype in [torch.long, torch.int]):
-                    self.config.problem_type = "single_label_classification"
-                else:
-                    self.config.problem_type = "multi_label_classification"
+        # if labels is not None:
+        #     if self.config.problem_type is None:
+        #         if self.num_labels == 1:
+        #             self.config.problem_type = "regression"
+        #         elif self.num_labels > 1 and (labels.dtype in [torch.long, torch.int]):
+        #             self.config.problem_type = "single_label_classification"
+        #         else:
+        #             self.config.problem_type = "multi_label_classification"
 
-            if self.config.problem_type == "regression":
-                loss_fct = MSELoss()
-                if self.num_labels == 1:
-                    loss = loss_fct(logits.squeeze(), labels.squeeze())
-                else:
-                    loss = loss_fct(logits, labels)
-            elif self.config.problem_type == "single_label_classification":
-                loss_fct = CrossEntropyLoss()
-                logits = logits.view(-1, self.num_labels)  # Flatten logits
-                labels = labels.view(-1)  # Flatten labels
-                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-            elif self.config.problem_type == "multi_label_classification":
-                loss_fct = BCEWithLogitsLoss()
-                loss = loss_fct(logits, labels)
+        #     if self.config.problem_type == "regression":
+        #         loss_fct = MSELoss()
+        #         if self.num_labels == 1:
+        #             loss = loss_fct(logits.squeeze(), labels.squeeze())
+        #         else:
+        #             loss = loss_fct(logits, labels)
+        #     elif self.config.problem_type == "single_label_classification":
+        #         loss_fct = CrossEntropyLoss()
+        #         logits = logits.view(-1, self.num_labels)  # Flatten logits
+        #         labels = labels.view(-1)  # Flatten labels
+        #         loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+        #     elif self.config.problem_type == "multi_label_classification":
+        #         loss_fct = BCEWithLogitsLoss()
+        #         loss = loss_fct(logits, labels)
+        # logits = logits.view(-1, self.num_labels)  # Flatten logits
+        logits = logits[:, 0, :]  # Pooling
 
-        if not return_dict:
-            #output = (logits,) + sequence_outputs[1:]
-            output = (logits,) 
-            return ((loss,) + output) if loss is not None else output
+        print("logits after flattening")
+        print(logits.shape)
+        labels = labels.view(-1)  # Flatten label
+        # if not return_dict:
+        #     #output = (logits,) + sequence_outputs[1:]
+        #     output = (logits,) 
+        #     return ((loss,) + output) if loss is not None else output
 
         return loss,logits
 

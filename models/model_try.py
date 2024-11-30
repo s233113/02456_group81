@@ -338,6 +338,7 @@ class MambaFinetune(pl.LightningModule):
 
         #ERROR: Figure out how to import the data here!!
         self.embeddings = preprocess_and_embed(self.train_data, self.train_data_loader, self.config, self.dropout_prob)
+
         #self.model.backbone = self.pretrained_model.backbone # do we need this one?
         #self.model.backbone = pretrained_model(config=self.config)
 
@@ -384,8 +385,9 @@ class MambaFinetune(pl.LightningModule):
     
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-        input_embeds = [tensor.to(device) for tensor in self.embeddings[0]]
+        input_embeds = self.embeddings[0].to(device)
+        print("CHECK")
+        print(input_embeds.shape)
         labels=self.embeddings[1].to("cuda")
         
         # print(self.embeddings)

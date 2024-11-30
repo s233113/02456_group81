@@ -218,7 +218,12 @@ def train(
                     predictions = predictions.squeeze(-1)
 
                 if model_type == "mamba":
+                    print("logit shape")
+                    print(logits.shape)
+                    print(labels.shape)
                     loss = criterion(logits.squeeze(-1), labels) + recon_loss
+                    print(logits.squeeze(-1).shape)
+                    print(labels.shape)
                 else:
                     loss = criterion(predictions.cpu(), labels) + recon_loss
 
