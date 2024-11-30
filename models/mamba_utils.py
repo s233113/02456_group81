@@ -65,7 +65,8 @@ class MambaClassificationHead(nn.Module):
 
     def forward(self, features, **kwargs):
         """Forward pass."""
-        x = features  # Pooling is done by the forward pass
+        x = features[0]  # Pooling is done by the forward pass
+        print("Hello forward loop")
         x = self.dropout(x)
         x = self.dense(x)
         x = ACT2FN[self.config.hidden_act](x)
@@ -128,8 +129,8 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
            #     output_hidden_states=output_hidden_states,
             #    return_dict=return_dict,
             #)
-        last_hidden_states = sequence_outputs[0]
-        batch_size = last_hidden_states.shape[0]
+        # last_hidden_states = sequence_outputs[0]
+        # batch_size = last_hidden_states.shape[0]
 
         # Pool the hidden states for the last tokens before padding
         # to use for classification
@@ -161,19 +162,22 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
                     loss = loss_fct(logits, labels)
             elif self.config.problem_type == "single_label_classification":
                 loss_fct = CrossEntropyLoss()
+                logits = logits.view(-1, self.num_labels)  # Flatten logits
+                labels = labels.view(-1)  # Flatten labels
                 loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
             elif self.config.problem_type == "multi_label_classification":
                 loss_fct = BCEWithLogitsLoss()
                 loss = loss_fct(logits, labels)
 
         if not return_dict:
-            output = (logits,) + sequence_outputs[1:]
+            #output = (logits,) + sequence_outputs[1:]
+            output = (logits,) 
             return ((loss,) + output) if loss is not None else output
 
         return MambaSequenceClassifierOutput(
             loss=loss,
             logits=logits,
-            hidden_states=sequence_outputs.hidden_states,
+            # hidden_states=sequence_outputs.hidden_states,
         )
 
 

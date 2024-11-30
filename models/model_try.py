@@ -383,18 +383,32 @@ class MambaFinetune(pl.LightningModule):
         #concept_ids, type_ids, time_stamps, ages, visit_orders, visit_segments = inputs (???)
         ts_values, ts_indicators, ts_times, static_features = inputs
         #order taken from forward method in embeddings_try (???)
-        inputs_embeds = self.embeddings(  #debug , extract the embeddings
-            ts_values=ts_values,
-            ts_indicators=ts_indicators,
-            ts_times=ts_times,
-            static=static_features,
-        )
 
+        #Commented because we have already embedded
+        print("Hello embeddings")
+
+        #inputs_embeds = self.embeddings
+    
+
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+        input_embeds = [tensor.to(device) for tensor in self.embeddings[0]]
+        labels=self.embeddings[1].to("cuda")
+        
+        # print(self.embeddings)
+        # print(self.embeddings(  #debug , extract the embeddings
+        #     ts_values=ts_values,
+        #     ts_indicators=ts_indicators,
+        #     ts_times=ts_times,
+        #     static=static_features,
+        # ))
+        
+        
         return self.model(
             #input_ids=None, #based on what we said earlier(here there was concepts_ids) (???)
-            inputs_embeds=inputs_embeds,
+            inputs_embeds=input_embeds,
             labels=labels,
-            task_indices=task_indices,
+            # task_indices=task_indices,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
         )

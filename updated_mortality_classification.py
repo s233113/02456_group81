@@ -18,6 +18,8 @@ from models.deep_set_attention import DeepSetAttentionModel
 from models.grud import GRUDModel
 from models.ip_nets import InterpolationPredictionModel
 
+from typing import Tuple
+
 
 def train_test(
     train_pair,
@@ -179,20 +181,40 @@ def train(
 
         for batch in tqdm.tqdm(train_dataloader, total=len(train_dataloader)):
             data, times, static, labels, mask, delta = batch
-            if model_type != "grud":
+
+
+            if model_type != "grud" :
                 data, static, times, mask, delta = (
                     data.to(device), static.to(device), times.to(device),
                     mask.to(device), delta.to(device)
                 )
+                if model_type=="mamba":
+                    labels=labels.to(device)
 
             optimizer.zero_grad()
-            predictions = model(
-                x=data, static=static, time=times, sensor_mask=mask, delta=delta
-            )
+
+            #Call the model differently depending on if it's mamba
+
+            if model_type == "mamba":
+                input_mamba: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] = (data, mask, times, static)
+
+                print("input_mamba")
+                # input_mamba=Tuple[data, mask, times, static]
+                model = model.to(device)
+                predictions = model(inputs=input_mamba, labels=labels)
+            else:
+                predictions = model(
+                    x=data, static=static, time=times, sensor_mask=mask, delta=delta
+                )
+
+
             if type(predictions) == tuple:
                 predictions, recon_loss = predictions
             else:
                 recon_loss = 0
+
+            print(predictions)
+
             predictions = predictions.squeeze(-1)
             loss = criterion(predictions.cpu(), labels) + recon_loss
             loss_list.append(loss.item())
