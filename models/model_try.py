@@ -23,7 +23,6 @@ from transformers.models.mamba.modeling_mamba import (
 )
 
 from models.mamba_utils import (
-    MambaForMultiHeadSequenceClassification,
     MambaForSequenceClassification,
     MambaSequenceClassifierOutput,
 )
@@ -321,14 +320,8 @@ class MambaFinetune(pl.LightningModule):
         self.config = pretrained_model.config
         self.config.num_labels = self.num_labels
         self.config.classifier_dropout = self.classifier_dropout
-        self.config.problem_type = problem_type
-
-        if self.multi_head:
-            self.model = MambaForMultiHeadSequenceClassification(
-                config=self.config, num_tasks=self.num_tasks
-            )
-        else:
-            self.model = MambaForSequenceClassification(config=self.config)
+    
+        self.model = MambaForSequenceClassification(config=self.config)
 
         # self.post_init()
         # ???
@@ -440,7 +433,7 @@ class MambaFinetune(pl.LightningModule):
             prog_bar=True,
             sync_dist=True,
         )
-
+        print("Loss training step")
         return loss
 
     def validation_step(self, batch: Dict[str, Any], batch_idx: int) -> Any:
@@ -471,6 +464,7 @@ class MambaFinetune(pl.LightningModule):
             sync_dist=True,
         )
 
+        print("Validation step loss")
         return loss
 
     def test_step(self, batch: Dict[str, Any], batch_idx: int) -> Any:
@@ -500,7 +494,7 @@ class MambaFinetune(pl.LightningModule):
 
         # Append the outputs to the instance attribute
         self.test_outputs.append(log)
-
+        print("Test log")
         return log
 
     def on_test_epoch_end(self) -> Any:

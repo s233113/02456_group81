@@ -198,10 +198,10 @@ def train(
             if model_type == "mamba":
                 input_mamba: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] = (data, mask, times, static)
 
-                print("input_mamba")
                 # input_mamba=Tuple[data, mask, times, static]
                 model = model.to(device)
-                predictions = model(inputs=input_mamba, labels=labels)
+                loss, logits = model(inputs=input_mamba, labels=labels)
+                predictions = torch.argmax(logits, dim=1)
             else:
                 predictions = model(
                     x=data, static=static, time=times, sensor_mask=mask, delta=delta
@@ -212,11 +212,15 @@ def train(
                 predictions, recon_loss = predictions
             else:
                 recon_loss = 0
+            
+            if model_type!="mamba":
+                predictions = predictions.squeeze(-1)
 
-            print(predictions)
+            if model_type == "mamba":
+                loss = criterion(logits.squeeze(-1), labels) + recon_loss
+            else:
+                loss = criterion(predictions.cpu(), labels) + recon_loss
 
-            predictions = predictions.squeeze(-1)
-            loss = criterion(predictions.cpu(), labels) + recon_loss
             loss_list.append(loss.item())
             loss.backward()
             optimizer.step()
