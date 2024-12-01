@@ -8,6 +8,7 @@ from torch import nn
 from sklearn import metrics
 import json
 import pandas as pd
+from transformers import MambaConfig, AutoModelForCausalLM
 
 from mortality_part_preprocessing import PairedDataset, MortalityDataset
 from models.model_try import MambaFinetune
@@ -110,10 +111,20 @@ def train(
     sensor_count = test_batch[0].shape[1]
     static_size = test_batch[2].shape[1]
 
+    batch_size= test_batch[0].shape[0]
+    print("batch size line 115 :" , batch_size )
+
     print(type(train_dataloader))
     # Initialize the model
+
+    #debugging:
+    print(AutoModelForCausalLM.from_pretrained("whaleloops/clinicalmamba-130m-hf"))
+    print(MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf"))
+
+
+
     if model_type == "mamba":
-        pretrained_model = MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf")
+        pretrained_model = AutoModelForCausalLM.from_pretrained("whaleloops/clinicalmamba-130m-hf")
         model = MambaFinetune(
             pretrained_model=pretrained_model,
             train_data=train_dataloader.dataset,
@@ -183,7 +194,7 @@ def train(
             data, times, static, labels, mask, delta = batch
 
 
-            if (data.shape[0]==186):
+            if (data.shape[0]==batch_size):
                 if model_type != "grud" :
                     data, static, times, mask, delta = (
                         data.to(device), static.to(device), times.to(device),
@@ -244,7 +255,7 @@ def train(
             for batch in val_dataloader:
                 data, times, static, labels, mask, delta = batch
 
-                if data.shape[0]==186:
+                if data.shape[0]==batch_size:
                     labels_list = torch.cat((labels_list, labels), dim=0)
                     if model_type != "grud":
                         data, static, times, mask, delta = (
@@ -337,7 +348,8 @@ def test(test_dataloader, output_path, device, model_type, model, **kwargs):
     max_seq_length = test_batch[0].shape[2]
     sensor_count = test_batch[0].shape[1]
     static_size = test_batch[2].shape[1]
-
+    batch_size= test_batch[0].shape[0]
+    
     criterion = nn.CrossEntropyLoss()
     model.load_state_dict(torch.load(f"{output_path}/checkpoint.pt"))
     model.eval().to(device)
@@ -347,7 +359,7 @@ def test(test_dataloader, output_path, device, model_type, model, **kwargs):
     with torch.no_grad():
         for batch in test_dataloader:
             data, times, static, labels, mask, delta = batch
-            if data.shape[0]==186:
+            if data.shape[0]==batch_size:
                 labels_list = torch.cat((labels_list, labels), dim=0)
                 if model_type != "grud":
                     data, static, times, mask, delta = (
