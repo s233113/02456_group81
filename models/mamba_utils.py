@@ -127,8 +127,12 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
         # datasummed = torch.sum(logits, dim=1)
         # datacounts = torch.clamp(logits, min=1e-9)
         # average = datasummed/datacounts
+        print("logits before reshapping :")
+        print(logits)
         logits=logits.mean(dim=1) 
 
+        print("logits after reshapping: ")
+        print(logits)
 
         print("logits after flattening")
         print(logits.shape)

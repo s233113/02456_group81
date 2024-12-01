@@ -250,6 +250,8 @@ class MambaFinetune(pl.LightningModule):
         vocab_size : int,
         # pretrained_model: MambaForCausalLM,# change with our data ???
         pretrained_model: MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf"),
+        #pretrained_model: MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf"),
+
         train_data: 'numpy.ndarray',
         train_data_loader: 'torch.utils.data.dataloader.DataLoader',
         problem_type: str = "single_label_classification",

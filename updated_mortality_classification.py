@@ -99,6 +99,7 @@ def train(
     lr,
     early_stop_criteria,
     model_args,
+    gradient_clip_value=1.0, 
     **kwargs,
 ):
     """
@@ -165,6 +166,18 @@ def train(
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
+    if model_type=="mamba":
+        # **Scheduler Setup**
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(
+            optimizer,
+            max_lr=lr,
+            steps_per_epoch=len(train_dataloader),
+            epochs=epochs,
+        )
+
+        # Mixed precision setup
+        scaler = torch.cuda.amp.GradScaler()
+
     early_stopping = EarlyStopping(
         patience=patience, verbose=True, path=f"{output_path}/checkpoint.pt"
     )
@@ -195,44 +208,51 @@ def train(
                 optimizer.zero_grad()
 
                 #Call the model differently depending on if it's mamba
+                with torch.cuda.amp.autocast():
+                    if model_type == "mamba":
+                        input_mamba: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] = (data, mask, times, static)
 
-                if model_type == "mamba":
-                    input_mamba: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] = (data, mask, times, static)
+                        # input_mamba=Tuple[data, mask, times, static]
+                        model = model.to(device)
+                        loss1, logits = model(inputs=input_mamba, labels=labels)
+                        recon_loss = 0
 
-                    # input_mamba=Tuple[data, mask, times, static]
-                    model = model.to(device)
-                    loss, logits = model(inputs=input_mamba, labels=labels)
-                    predictions = torch.argmax(logits, dim=1)
-                else:
-                    predictions = model(
-                        x=data, static=static, time=times, sensor_mask=mask, delta=delta
-                    )
+                        loss = criterion(logits.squeeze(-1), labels)
+                        
+                    if model_type!="mamba":
+                        predictions = model(
+                            x=data, static=static, time=times, sensor_mask=mask, delta=delta
+                        )
+                        if type(predictions) == tuple:
+                            predictions, recon_loss = predictions
+                        else:
+                            recon_loss = 0
+                    
+                        loss = torch.tensor(criterion(predictions.cpu(), labels) + recon_loss, requires_grad=False)
 
-
-                if type(predictions) == tuple:
-                    predictions, recon_loss = predictions
-                else:
-                    recon_loss = 0
                 
-                if model_type!="mamba":
-                    predictions = predictions.squeeze(-1)
+                if model_type=="mamba":
+                    # **Backward Pass with Gradient Scaling**
+                    print("type loss: " , type(loss))
+                    scaler.scale(loss).backward(retain_graph=True)
 
-                if model_type == "mamba":
-                    print("logit shape")
-                    print(logits.shape)
-                    print(labels.shape)
-                    #loss = criterion(logits.squeeze(-1), labels) + recon_loss
-                    loss = torch.tensor(criterion(logits.squeeze(-1), labels) + recon_loss, requires_grad=True)
+                    # **Gradient Clipping**
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clip_value)
 
-                    print(logits.squeeze(-1).shape)
-                    print(labels.shape)
+                    # Optimizer step with Scaler
+                    scaler.step(optimizer)
+                    scaler.update()
+
+                    # Scheduler step
+                    scheduler.step()
+                
                 else:
-                    loss = torch.tensor(criterion(predictions.cpu(), labels) + recon_loss, requires_grad=False)
+                    # loss.backward(retain_graph=True)
+                    loss.backward()
+                    optimizer.step()
 
                 loss_list.append(loss.item())
-                # loss.backward(retain_graph=True)
-                loss.backward()
-                optimizer.step()
+
 
         accum_loss = np.mean(loss_list)
 
@@ -285,7 +305,7 @@ def train(
 
         if model_type=="mamba":
             #val_loss = criterion(logits_list.cpu(), labels_list)
-            val_loss = torch.tensor(criterion(logits_list.cpu(), labels_list), requires_grad=True)
+            val_loss = criterion(logits_list.cpu(), labels_list)
 
         else:
             val_loss = torch.tensor(criterion(predictions_list.cpu(), labels_list), requires_grad=False)
