@@ -257,6 +257,7 @@ def train(
                         input_mamba: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] = (data, mask, times, static)
                         model = model.to(device)
                         loss, logits = model(inputs=input_mamba, labels=labels)
+                        
                         predictions = torch.argmax(logits, dim=1)
                     else:
                         predictions = model(
@@ -275,6 +276,7 @@ def train(
 
 
             if model_type=="mamba":
+                print("logits list: ", logits_list)
                 probs = torch.nn.functional.softmax(logits_list, dim=1)
                 auc_score = metrics.roc_auc_score(labels_list, probs[:, 1])
                 aupr_score = metrics.average_precision_score(labels_list, probs[:, 1])

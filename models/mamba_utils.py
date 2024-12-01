@@ -12,6 +12,8 @@ from transformers.models.mamba.modeling_mamba import (
     MAMBA_START_DOCSTRING,
     MambaModel,
     MambaPreTrainedModel,
+    MambaCausalLMOutput,
+    MambaForCausalLM,
 )
 from transformers.utils import (
     ModelOutput,
@@ -88,7 +90,8 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
         super().__init__(config)
         self.num_labels = config.num_labels
         self.config = config
-        #self.backbone = MambaModel(config)
+        self.pretrained_model = MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf")
+        self.backbone = self.pretrained_model.backbone
         self.classifier = MambaClassificationHead(config)
 
         # Initialize weights and apply final processing
@@ -116,8 +119,28 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
 
         Returns:
         """
+        sequence_outputs = self.backbone(
+                input_ids=None,
+                inputs_embeds=inputs_embeds,
+                output_hidden_states=output_hidden_states,
+                return_dict=return_dict,
+            )
 
-        logits = self.classifier(inputs_embeds)
+        last_hidden_states = sequence_outputs[0]
+        batch_size = last_hidden_states.shape[0]
+
+        # Pool the hidden states for the last tokens before padding
+        # to use for classification
+        last_token_indexes = (
+            torch.eq(input_ids, self.config.pad_token_id).int().argmax(-1) - 1
+        )
+        pooled_last_hidden_states = last_hidden_states[
+            torch.arange(batch_size, device=last_hidden_states.device),
+            last_token_indexes,
+        ]
+
+        logits = self.classifier(pooled_last_hidden_states)
+
         print("dimension of logits in mamba_utils")
         print(logits.shape)
         print("size of labels before reshapping", labels.shape)
@@ -127,7 +150,7 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
         # datasummed = torch.sum(logits, dim=1)
         # datacounts = torch.clamp(logits, min=1e-9)
         # average = datasummed/datacounts
-        logits=logits.mean(dim=1) 
+        #logits=logits.mean(dim=1) 
 
 
         print("logits after flattening")
