@@ -116,67 +116,24 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
 
         Returns:
         """
-        #if inputs_embeds is not None:
-         #   sequence_outputs = self.backbone(
-           #     input_ids=None,
-          #      inputs_embeds=inputs_embeds,
-            #    output_hidden_states=output_hidden_states,
-             #   return_dict=return_dict,
-            #)
-        #lse:
-        #    sequence_outputs = self.backbone(
-         #       input_ids=input_ids,
-          #      inputs_embeds=None,
-           #     output_hidden_states=output_hidden_states,
-            #    return_dict=return_dict,
-            #)
-        # last_hidden_states = sequence_outputs[0]
-        # batch_size = last_hidden_states.shape[0]
-
-        # Pool the hidden states for the last tokens before padding
-        # to use for classification
-        #last_token_indexes = (
-         #   torch.eq(input_ids, self.config.pad_token_id).int().argmax(-1) - 1
-        #)
-        #pooled_last_hidden_states = last_hidden_states[
-         #   torch.arange(batch_size, device=last_hidden_states.device),
-         #   last_token_indexes,
-        #]
 
         logits = self.classifier(inputs_embeds)
         print("dimension of logits in mamba_utils")
         print(logits.shape)
-
+        print("size of labels before reshapping", labels.shape)
         loss = None
-        # if labels is not None:
-        #     if self.config.problem_type is None:
-        #         if self.num_labels == 1:
-        #             self.config.problem_type = "regression"
-        #         elif self.num_labels > 1 and (labels.dtype in [torch.long, torch.int]):
-        #             self.config.problem_type = "single_label_classification"
-        #         else:
-        #             self.config.problem_type = "multi_label_classification"
+       
+        # logits = logits[:, 0, :]  # Pooling
+        # datasummed = torch.sum(logits, dim=1)
+        # datacounts = torch.clamp(logits, min=1e-9)
+        # average = datasummed/datacounts
+        logits=logits.mean(dim=1) 
 
-        #     if self.config.problem_type == "regression":
-        #         loss_fct = MSELoss()
-        #         if self.num_labels == 1:
-        #             loss = loss_fct(logits.squeeze(), labels.squeeze())
-        #         else:
-        #             loss = loss_fct(logits, labels)
-        #     elif self.config.problem_type == "single_label_classification":
-        #         loss_fct = CrossEntropyLoss()
-        #         logits = logits.view(-1, self.num_labels)  # Flatten logits
-        #         labels = labels.view(-1)  # Flatten labels
-        #         loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-        #     elif self.config.problem_type == "multi_label_classification":
-        #         loss_fct = BCEWithLogitsLoss()
-        #         loss = loss_fct(logits, labels)
-        # logits = logits.view(-1, self.num_labels)  # Flatten logits
-        logits = logits[:, 0, :]  # Pooling
 
         print("logits after flattening")
         print(logits.shape)
         labels = labels.view(-1)  # Flatten label
+        print("labels shape after flattening ", labels.shape)
         # if not return_dict:
         #     #output = (logits,) + sequence_outputs[1:]
         #     output = (logits,) 

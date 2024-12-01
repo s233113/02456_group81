@@ -221,14 +221,17 @@ def train(
                     print("logit shape")
                     print(logits.shape)
                     print(labels.shape)
-                    loss = criterion(logits.squeeze(-1), labels) + recon_loss
+                    #loss = criterion(logits.squeeze(-1), labels) + recon_loss
+                    loss = torch.tensor(criterion(logits.squeeze(-1), labels) + recon_loss, requires_grad=True)
+
                     print(logits.squeeze(-1).shape)
                     print(labels.shape)
                 else:
-                    loss = criterion(predictions.cpu(), labels) + recon_loss
+                    loss = torch.tensor(criterion(predictions.cpu(), labels) + recon_loss, requires_grad=False)
 
                 loss_list.append(loss.item())
-                loss.backward(retain_graph=True)
+                # loss.backward(retain_graph=True)
+                loss.backward()
                 optimizer.step()
 
         accum_loss = np.mean(loss_list)
@@ -281,9 +284,11 @@ def train(
                 aupr_score = metrics.average_precision_score(labels_list, probs[:, 1])
 
         if model_type=="mamba":
-            val_loss = criterion(logits_list.cpu(), labels_list)
+            #val_loss = criterion(logits_list.cpu(), labels_list)
+            val_loss = torch.tensor(criterion(logits_list.cpu(), labels_list), requires_grad=True)
+
         else:
-            val_loss = criterion(predictions_list.cpu(), labels_list)
+            val_loss = torch.tensor(criterion(predictions_list.cpu(), labels_list), requires_grad=False)
 
         # Log and early stopping
         with open(f"{output_path}/training_log.csv", "a") as train_log:

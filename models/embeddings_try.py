@@ -105,41 +105,16 @@ class MambaEmbeddingLayer(nn.Module):
             self.embedding_size,
         )
 
+        self.scale_back_concat_layer = nn.Linear(
+            config.hidden_size + 2 * max_time_steps,
+            config.hidden_size,
+        )
+
         self.LayerNorm = nn.LayerNorm(self.embedding_size, eps=1e-12)
         self.dropout = nn.Dropout(dropout)
+        self.tanh= nn.Tanh()
 
-    # def forward(self, ts_values: torch.Tensor, ts_indicators: torch.Tensor, ts_times: torch.Tensor, static: torch.Tensor) -> torch.Tensor:
-    #     # Time embeddings
-    #     time_embeds = self.time_embedding(ts_times)
-
-    #     # Feature embeddings
-    #     ts_values_embedded = self.feature_embedding(ts_values)
-    #     print("before ts_values_embedded: ")
-    #     print(ts_values_embedded.shape)
-    #     print(ts_indicators.shape)
-
-    #      # Align ts_indicators for multiplication
-    #     ts_indicators = ts_indicators.permute(0, 2, 1).unsqueeze(-1)  # [batch_size, time_steps, num_features, 1]
-        
-    #     print("after unsqueze" , ts_indicators.shape)
-
-    #     ts_values_embedded = ts_values_embedded * ts_indicators  # Element-wise multiplication (broadcasting)
-    #     #ts_values_embedded = ts_values_embedded * ts_indicators.unsqueeze(-1)
-
-    #     # Combine time and feature embeddings
-    #     ts_combined = torch.cat((ts_values_embedded, time_embeds), dim=-1)
-    #     ts_embeds = self.scale_layer(ts_combined)
-
-    #     # Static embeddings
-    #     static_embeds = self.static_embedding(static)
-
-    #     # Add static embeddings and normalize
-    #     combined_embeds = ts_embeds + static_embeds.unsqueeze(1)
-    #     combined_embeds = self.LayerNorm(combined_embeds)
-    #     combined_embeds = self.dropout(combined_embeds)
-
-    #     return combined_embeds
-
+   
     def forward(self, ts_values: torch.Tensor, ts_indicators: torch.Tensor, ts_times: torch.Tensor, static: torch.Tensor) -> torch.Tensor:
         
         print("before embedding")
@@ -179,6 +154,15 @@ class MambaEmbeddingLayer(nn.Module):
 
         # Add static embeddings and normalize
         combined_embeds = ts_embeds + static_embeds.unsqueeze(1)  # Broadcast static to time dimension
+
+        print("size before tanh: ", combined_embeds.shape)
+        # test=self.scale_back_concat_layer(combined_embeds)
+        # print("concat layer: ", combined_embeds.shape)
+        # combined_embeds= self.tanh(self.scale_back_concat_layer(combined_embeds))
+        combined_embeds= self.tanh(combined_embeds) #to try to capture nonlinear relationships in the data
+
+        print("size after tanh: " , combined_embeds.shape)
+
         combined_embeds = self.LayerNorm(combined_embeds)
         combined_embeds = self.dropout(combined_embeds)
 
@@ -187,43 +171,6 @@ class MambaEmbeddingLayer(nn.Module):
 
         return combined_embeds
 
-# # Preprocessing and embedding function
-# def preprocess_and_embed(train_data, config, dropout):
-#     """
-#     Preprocess the train_data and embed it for model input.
-
-#     Parameters:
-#         train_data: numpy array of dictionaries
-#         config: MambaConfig object with model hyperparameters
-
-#     Returns:
-#         Embedded data and labels
-#     """
-#     # pdb.set_trace()
-#     max_time_steps = max(len(entry["ts_times"]) for entry in train_data)
-#     num_features = train_data[0]["ts_values"].shape[1]
-#     static_size = len(train_data[0]["static"])
-
-#     embedding_layer = MambaEmbeddingLayer(config, num_features, static_size, max_time_steps,dropout)
-
-#     # # Preprocess data
-#     # ts_values = [torch.tensor(entry["ts_values"], dtype=torch.float32) for entry in train_data]
-#     # ts_indicators = [torch.tensor(entry["ts_indicators"], dtype=torch.float32) for entry in train_data]
-#     # ts_times = [torch.tensor(entry["ts_times"], dtype=torch.float32) for entry in train_data]
-#     # static_features = [torch.tensor(entry["static"], dtype=torch.float32) for entry in train_data]
-#     # labels = [torch.tensor(entry["labels"], dtype=torch.long) for entry in train_data]
-#     # # static_features = torch.tensor([entry["static"] for entry in train_data], dtype=torch.float32)
-#     # # labels = torch.tensor([entry["labels"] for entry in train_data], dtype=torch.long)
-
-#     # # Pad sequences to the same length
-#     # ts_values_padded = nn.utils.rnn.pad_sequence(ts_values, batch_first=True)
-#     # ts_indicators_padded = nn.utils.rnn.pad_sequence(ts_indicators, batch_first=True)
-#     # ts_times_padded = nn.utils.rnn.pad_sequence(ts_times, batch_first=True)
-
-#     # Create embeddings
-#     embedded_data = embedding_layer(ts_values_padded, ts_indicators_padded, ts_times_padded, static_features)
-
-#     return embedded_data, labels
 
 def preprocess_and_embed(preprocessed_data, train_data_loader, config, dropout):
     """
@@ -237,22 +184,6 @@ def preprocess_and_embed(preprocessed_data, train_data_loader, config, dropout):
     Returns:
         Embedded data and labels
     """
-
-    # max_time_steps_pos = np.shape(preprocessed_data.dataset_pos.times_array)[1] # Number of time steps
-    # num_features_pos = np.shape(preprocessed_data.dataset_pos.data_array)[1]  # Number of features
-    # static_size_pos = np.shape(preprocessed_data.dataset_pos.static_array)[1]  # Number of static features
-   
-    # max_time_steps_neg = np.shape(preprocessed_data.dataset_neg.times_array)[1] # Number of time steps
-    # num_features_neg = np.shape(preprocessed_data.dataset_neg.data_array)[1]  # Number of features
-    # static_size_neg = np.shape(preprocessed_data.dataset_neg.static_array)[1]  # Number of static features
-    
-    # max_time_steps=np.maximum(max_time_steps_pos, max_time_steps_neg)
-    # num_features=np.maximum(num_features_neg, num_features_pos)
-    # static_size=np.maximum(static_size_neg, static_size_pos)
-
-    # print(max_time_steps)
-    # print(num_features)
-    # print(static_size)
 
     data, times, static, labels, mask, delta=next(iter(train_data_loader))
 
