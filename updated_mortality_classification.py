@@ -125,6 +125,10 @@ def train(
 
     if model_type == "mamba":
         pretrained_model = AutoModelForCausalLM.from_pretrained("whaleloops/clinicalmamba-130m-hf")
+        print("pretrained model config: ", pretrained_model.config)
+
+        print("pretrained model backbone:")
+        print(pretrained_model.backbone)
         model = MambaFinetune(
             pretrained_model=pretrained_model,
             train_data=train_dataloader.dataset,
