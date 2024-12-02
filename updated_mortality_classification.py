@@ -8,7 +8,7 @@ from torch import nn
 from sklearn import metrics
 import json
 import pandas as pd
-
+import os
 from mortality_part_preprocessing import PairedDataset, MortalityDataset
 from models.model_try import MambaFinetune
 from transformers.models.mamba.modeling_mamba import MambaForCausalLM
@@ -17,7 +17,7 @@ from models.early_stopper import EarlyStopping
 from models.deep_set_attention import DeepSetAttentionModel
 from models.grud import GRUDModel
 from models.ip_nets import InterpolationPredictionModel
-
+from transformers import MambaConfig, AutoModelForCausalLM
 from typing import Tuple
 
 
@@ -55,12 +55,17 @@ def train_test(
     #     break
 
     print(type(train_dataloader))
+
+    
     # assign GPU
     if torch.cuda.is_available():
         dev = "cuda"
     else:
         dev = "cpu"
     device = torch.device(dev)
+
+    print(torch.cuda.current_device())
+    print(torch.cuda.get_device_name(torch.cuda.current_device()))
 
     val_loss, model = train(
         train_dataloader=train_dataloader,
@@ -76,6 +81,7 @@ def train_test(
         model_args=model_args
     )
 
+    
     loss, accuracy_score, auprc_score, auc_score = test(
         test_dataloader=test_dataloader,
         output_path=output_path,
@@ -109,11 +115,14 @@ def train(
     max_seq_length = test_batch[0].shape[2]
     sensor_count = test_batch[0].shape[1]
     static_size = test_batch[2].shape[1]
+    batch_size=  test_batch[0].shape[0]
 
     print(type(train_dataloader))
     # Initialize the model
     if model_type == "mamba":
-        pretrained_model = MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf")
+        #pretrained_model = MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf")
+        pretrained_model = AutoModelForCausalLM.from_pretrained("whaleloops/clinicalmamba-130m-hf")
+
         model = MambaFinetune(
             pretrained_model=pretrained_model,
             train_data=train_dataloader.dataset,
@@ -124,6 +133,9 @@ def train(
             learning_rate=lr,
             classifier_dropout=model_args.get("dropout", 0.1),
         )
+
+        model=model.to(device)
+
     elif model_type == "grud":
         model = GRUDModel(
             input_dim=sensor_count,
@@ -175,15 +187,20 @@ def train(
             ",".join(["epoch", "train_loss", "val_loss", "val_roc_auc_score"]) + "\n"
         )
 
+
+    #try to pass model to device outside for loop
+
+    #model=model.to(device)
+    
     for epoch in range(epochs):
-        model.train().to(device)
+        #model.train().to(device) # CHECK WHAT THIS LINE IS DOING
         loss_list = []
 
         for batch in tqdm.tqdm(train_dataloader, total=len(train_dataloader)):
             data, times, static, labels, mask, delta = batch
 
 
-            if (data.shape[0]==186):
+            if (data.shape[0]==batch_size):
                 if model_type != "grud" :
                     data, static, times, mask, delta = (
                         data.to(device), static.to(device), times.to(device),
@@ -200,7 +217,7 @@ def train(
                     input_mamba: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] = (data, mask, times, static)
 
                     # input_mamba=Tuple[data, mask, times, static]
-                    model = model.to(device)
+                    #model = model.to(device) # Are we sending to device twice??? See line 182
                     loss, logits = model(inputs=input_mamba, labels=labels)
                     predictions = torch.argmax(logits, dim=1)
                 else:
@@ -237,14 +254,14 @@ def train(
         accum_loss = np.mean(loss_list)
 
         # Validation
-        model.eval().to(device)
+        #model.eval().to(device)
         labels_list, predictions_list, logits_list = torch.LongTensor([]), torch.FloatTensor([]), torch.FloatTensor([])
 
         with torch.no_grad():
             for batch in val_dataloader:
                 data, times, static, labels, mask, delta = batch
 
-                if data.shape[0]==186:
+                if data.shape[0]==batch_size:
                     labels_list = torch.cat((labels_list, labels), dim=0)
                     if model_type != "grud":
                         data, static, times, mask, delta = (
@@ -255,7 +272,7 @@ def train(
                     if model_type == "mamba":
                         labels=labels.to(device)
                         input_mamba: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] = (data, mask, times, static)
-                        model = model.to(device)
+                        #model = model.to(device)
                         loss, logits = model(inputs=input_mamba, labels=labels)
                         
                         predictions = torch.argmax(logits, dim=1)
@@ -339,17 +356,18 @@ def test(test_dataloader, output_path, device, model_type, model, **kwargs):
     max_seq_length = test_batch[0].shape[2]
     sensor_count = test_batch[0].shape[1]
     static_size = test_batch[2].shape[1]
+    batch_size=  test_batch[0].shape[0]
 
     criterion = nn.CrossEntropyLoss()
     model.load_state_dict(torch.load(f"{output_path}/checkpoint.pt"))
-    model.eval().to(device)
+    #model.eval().to(device)
 
     labels_list, predictions_list, logits_list = torch.LongTensor([]), torch.FloatTensor([]), torch.FloatTensor([])
 
     with torch.no_grad():
         for batch in test_dataloader:
             data, times, static, labels, mask, delta = batch
-            if data.shape[0]==186:
+            if data.shape[0]==batch_size:
                 labels_list = torch.cat((labels_list, labels), dim=0)
                 if model_type != "grud":
                     data, static, times, mask, delta = (
@@ -362,7 +380,7 @@ def test(test_dataloader, output_path, device, model_type, model, **kwargs):
                     input_mamba: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] = (data, mask, times, static)
 
                     # input_mamba=Tuple[data, mask, times, static]
-                    model = model.to(device)
+                    #model = model.to(device)
                     loss, logits = model(inputs=input_mamba, labels=labels)
                     predictions = torch.argmax(logits, dim=1)
                 else:

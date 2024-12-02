@@ -16,7 +16,7 @@ from torch import nn
 from torch.cuda.amp import autocast
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import LinearLR, SequentialLR
-from transformers import MambaConfig
+from transformers import MambaConfig, AutoModelForCausalLM
 from transformers.models.mamba.modeling_mamba import (
     MambaCausalLMOutput,
     MambaForCausalLM,
@@ -249,7 +249,8 @@ class MambaFinetune(pl.LightningModule):
         self,
         vocab_size : int,
         # pretrained_model: MambaForCausalLM,# change with our data ???
-        pretrained_model: MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf"),
+        #pretrained_model: MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf"),
+        pretrained_model: AutoModelForCausalLM.from_pretrained("whaleloops/clinicalmamba-130m-hf"),
         train_data: 'numpy.ndarray',
         train_data_loader: 'torch.utils.data.dataloader.DataLoader',
         problem_type: str = "single_label_classification",
@@ -303,20 +304,6 @@ class MambaFinetune(pl.LightningModule):
         self.padding_idx = padding_idx
         self.cls_idx = cls_idx
         self.use_mambapy = use_mambapy
-
-        # #???
-        # self.config = MambaConfig(
-        #     vocab_size=self.vocab_size,
-        #     hidden_size=self.embedding_size,
-        #     state_size=self.state_size,
-        #     num_hidden_layers=self.num_hidden_layers,
-        #     expand=self.expand,
-        #     conv_kernel=self.conv_kernel,
-        #     pad_token_id=self.padding_idx,
-        #     bos_token_id=self.cls_idx,
-        #     eos_token_id=self.padding_idx,
-        #     use_mambapy=self.use_mambapy,
-        # )
         self.config = pretrained_model.config
         self.config.num_labels = self.num_labels
         self.config.classifier_dropout = self.classifier_dropout
@@ -384,8 +371,7 @@ class MambaFinetune(pl.LightningModule):
         #inputs_embeds = self.embeddings
     
 
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        input_embeds = self.embeddings[0].to(device)
+        input_embeds = self.embeddings[0].to("cuda")
         print("CHECK")
         print(input_embeds.shape)
         labels=self.embeddings[1].to("cuda")

@@ -22,6 +22,7 @@ from transformers.utils import (
     replace_return_docstrings,
 )
 
+from transformers import MambaConfig, AutoModelForCausalLM
 
 _CONFIG_FOR_DOC = "MambaConfig"
 
@@ -90,7 +91,8 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
         super().__init__(config)
         self.num_labels = config.num_labels
         self.config = config
-        self.pretrained_model = MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf")
+        #self.pretrained_model = MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf")
+        self.pretrained_model = AutoModelForCausalLM.from_pretrained("whaleloops/clinicalmamba-130m-hf")
         self.backbone = self.pretrained_model.backbone
         self.classifier = MambaClassificationHead(config)
 
@@ -119,6 +121,8 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
 
         Returns:
         """
+        input_ids= None 
+
         sequence_outputs = self.backbone(
                 input_ids=None,
                 inputs_embeds=inputs_embeds,
@@ -131,14 +135,21 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
 
         # Pool the hidden states for the last tokens before padding
         # to use for classification
-        last_token_indexes = (
-            torch.eq(input_ids, self.config.pad_token_id).int().argmax(-1) - 1
-        )
-        pooled_last_hidden_states = last_hidden_states[
-            torch.arange(batch_size, device=last_hidden_states.device),
-            last_token_indexes,
-        ]
 
+        #can we feed the last hidden states into the pooling instead of last token indexes
+
+
+    #can we use directly the self.config pad: instead of comparing it with 
+        # last_token_indexes = (
+        #     torch.eq(None, self.config.pad_token_id).int().argmax(-1) - 1
+        # )
+        # pooled_last_hidden_states = last_hidden_states[
+        #     torch.arange(batch_size, device=last_hidden_states.device),
+        #     last_token_indexes,
+        # ]
+        pooled_last_hidden_states = last_hidden_states.mean(dim=1)
+        print("poooled LHS:")
+        print(pooled_last_hidden_states)
         logits = self.classifier(pooled_last_hidden_states)
 
         print("dimension of logits in mamba_utils")
