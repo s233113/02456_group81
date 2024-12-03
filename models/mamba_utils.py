@@ -22,7 +22,7 @@ from transformers.utils import (
     replace_return_docstrings,
 )
 
-from transformers import MambaConfig, AutoModelForCausalLM
+from transformers import MambaConfig, AutoModelForCausalLM, AutoConfig
 
 _CONFIG_FOR_DOC = "MambaConfig"
 
@@ -69,8 +69,7 @@ class MambaClassificationHead(nn.Module):
     def forward(self, features, **kwargs):
         """Forward pass."""
         x = features  # Pooling is done by the forward pass
-        print("Hello forward loop")
-        print(x.shape)
+
         x = self.dropout(x)
         x = self.dense(x)
         x = ACT2FN[self.config.hidden_act](x)
@@ -87,12 +86,12 @@ class MambaClassificationHead(nn.Module):
     MAMBA_START_DOCSTRING,
 )
 class MambaForSequenceClassification(MambaPreTrainedModel):
-    def __init__(self, config):
+    def __init__(self, config, pretrained_model):
         super().__init__(config)
         self.num_labels = config.num_labels
         self.config = config
         #self.pretrained_model = MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf")
-        self.pretrained_model = AutoModelForCausalLM.from_pretrained("whaleloops/clinicalmamba-130m-hf")
+        self.pretrained_model = pretrained_model
         self.backbone = self.pretrained_model.backbone
         self.classifier = MambaClassificationHead(config)
 
@@ -121,8 +120,13 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
 
         Returns:
         """
-        input_ids= None 
 
+        # print("layers inside mamba utils")
+        # for name, param in self.pretrained_model.named_parameters():
+        #     print(f"{name}: shape={param.shape}")
+
+
+        input_ids= None 
         sequence_outputs = self.backbone(
                 input_ids=None,
                 inputs_embeds=inputs_embeds,
@@ -148,13 +152,10 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
         #     last_token_indexes,
         # ]
         pooled_last_hidden_states = last_hidden_states.mean(dim=1)
-        print("poooled LHS:")
-        print(pooled_last_hidden_states)
+
         logits = self.classifier(pooled_last_hidden_states)
 
-        print("dimension of logits in mamba_utils")
-        print(logits.shape)
-        print("size of labels before reshapping", labels.shape)
+
         loss = None
        
         # logits = logits[:, 0, :]  # Pooling
@@ -164,10 +165,8 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
         #logits=logits.mean(dim=1) 
 
 
-        print("logits after flattening")
-        print(logits.shape)
+
         labels = labels.view(-1)  # Flatten label
-        print("labels shape after flattening ", labels.shape)
         # if not return_dict:
         #     #output = (logits,) + sequence_outputs[1:]
         #     output = (logits,) 

@@ -17,7 +17,7 @@ from models.early_stopper import EarlyStopping
 from models.deep_set_attention import DeepSetAttentionModel
 from models.grud import GRUDModel
 from models.ip_nets import InterpolationPredictionModel
-from transformers import MambaConfig, AutoModelForCausalLM
+from transformers import MambaConfig, AutoModelForCausalLM, AutoConfig
 from typing import Tuple
 
 
@@ -117,12 +117,42 @@ def train(
     static_size = test_batch[2].shape[1]
     batch_size=  test_batch[0].shape[0]
 
-    print(type(train_dataloader))
     # Initialize the model
     if model_type == "mamba":
-        #pretrained_model = MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf")
-        pretrained_model = AutoModelForCausalLM.from_pretrained("whaleloops/clinicalmamba-130m-hf")
+        
+        config = AutoConfig.from_pretrained("whaleloops/clinicalmamba-130m-hf")
 
+        # Update the configuration with reduced dimensions
+        config.hidden_size = 256
+        config.d_model = 256
+        config.intermediate_size = 512
+        config.d_inner = 512
+        config.vocab_size= 35000 
+        config.torch_dtype = "float16"
+
+        pretrained_model= AutoModelForCausalLM.from_config(config)
+        
+        print("type: ", type(pretrained_model))
+        
+        #pretrained_model = MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf")
+        #pretrained_model = AutoModelForCausalLM.from_pretrained("whaleloops/clinicalmamba-130m-hf")
+        # print("config file: ", pretrained_model.config)
+
+        # pretrained_model.config.hidden_size = 256 #try to reduce hidden size
+        # pretrained_model.config.d_model = 256
+        # pretrained_model.config.intermediate_size = 512
+        # pretrained_model.config.d_inner = 512
+        # pretrained_model.config.vocab_size= 35000 
+
+        # print("after changes in config: ")
+        # print(pretrained_model.config)
+        # print("backbone:")
+        # print(pretrained_model.backbone)
+
+        # for name, param in pretrained_model.named_parameters():
+        #     print(f"{name}: shape={param.shape}")
+
+        # #
         model = MambaFinetune(
             pretrained_model=pretrained_model,
             train_data=train_dataloader.dataset,
@@ -235,14 +265,9 @@ def train(
                     predictions = predictions.squeeze(-1)
 
                 if model_type == "mamba":
-                    print("logit shape")
-                    print(logits.shape)
-                    print(labels.shape)
+           
                     #loss = criterion(logits.squeeze(-1), labels) + recon_loss
                     loss = torch.tensor(criterion(logits.squeeze(-1), labels) + recon_loss, requires_grad=True)
-
-                    print(logits.squeeze(-1).shape)
-                    print(labels.shape)
                 else:
                     loss = torch.tensor(criterion(predictions.cpu(), labels) + recon_loss, requires_grad=False)
 
@@ -252,7 +277,7 @@ def train(
                 optimizer.step()
 
         accum_loss = np.mean(loss_list)
-
+        
         # Validation
         #model.eval().to(device)
         labels_list, predictions_list, logits_list = torch.LongTensor([]), torch.FloatTensor([]), torch.FloatTensor([])
@@ -293,7 +318,6 @@ def train(
 
 
             if model_type=="mamba":
-                print("logits list: ", logits_list)
                 probs = torch.nn.functional.softmax(logits_list, dim=1)
                 auc_score = metrics.roc_auc_score(labels_list, probs[:, 1])
                 aupr_score = metrics.average_precision_score(labels_list, probs[:, 1])

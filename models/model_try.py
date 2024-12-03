@@ -307,12 +307,13 @@ class MambaFinetune(pl.LightningModule):
         self.config = pretrained_model.config
         self.config.num_labels = self.num_labels
         self.config.classifier_dropout = self.classifier_dropout
+        self.pretrained_model = pretrained_model
     
-        self.model = MambaForSequenceClassification(config=self.config)
+        self.model = MambaForSequenceClassification(config=self.config, pretrained_model = self.pretrained_model)
 
         # self.post_init()
         # ???
-        self.pretrained_model = pretrained_model #no change
+         #no change
        # self.embeddings = self.pretrained_model.embeddings
       #  self.embeddings = MambaEmbeddingsForCEHR(
        #     config=self.config,
@@ -366,14 +367,13 @@ class MambaFinetune(pl.LightningModule):
         #order taken from forward method in embeddings_try (???)
 
         #Commented because we have already embedded
-        print("Hello embeddings")
 
         #inputs_embeds = self.embeddings
     
+        #freeze the layers
+        
 
         input_embeds = self.embeddings[0].to("cuda")
-        print("CHECK")
-        print(input_embeds.shape)
         labels=self.embeddings[1].to("cuda")
         
         # print(self.embeddings)

@@ -117,57 +117,46 @@ class MambaEmbeddingLayer(nn.Module):
    
     def forward(self, ts_values: torch.Tensor, ts_indicators: torch.Tensor, ts_times: torch.Tensor, static: torch.Tensor) -> torch.Tensor:
         
-        print("before embedding")
-        print("ts values") 
-        print(ts_values.shape) #128, 37, 171:  batch size, variables, time steps
-        print("ts_indicators")
-        print(ts_indicators.shape)
-
-
+    
+    
         # Apply mask to ts_values before embedding
         ts_values_masked = ts_values * ts_indicators  # Element-wise masking [128, 37, 171]
-        
-        print("ts values masked:")
-        print(ts_values_masked.shape)
+     
+     
         # Time embeddings
         time_embeds = self.time_embedding(ts_times) 
-        print("time embeddings")
-        print(time_embeds.shape)
-
+    
+    
         # Feature embeddings
         ts_values_embedded = self.feature_embedding(ts_values_masked) 
 
 
-        print("ts values embeddings: ")
-        print(ts_values_embedded.shape) 
         # Combine time and feature embeddings
         ts_combined = torch.cat((ts_values_embedded, time_embeds), dim=-1)  
         ts_embeds = self.scale_layer(ts_combined)
 
-        print("ts combined:")
-        print(ts_combined.shape)
-
+    
+    
         # Static embeddings
         static_embeds = self.static_embedding(static)  
-        print("static embeddings")
-        print(static_embeds.shape)
-
+     
+     
         # Add static embeddings and normalize
         combined_embeds = ts_embeds + static_embeds.unsqueeze(1)  # Broadcast static to time dimension
 
-        print("size before tanh: ", combined_embeds.shape)
+
         # test=self.scale_back_concat_layer(combined_embeds)
         # print("concat layer: ", combined_embeds.shape)
         # combined_embeds= self.tanh(self.scale_back_concat_layer(combined_embeds))
         combined_embeds= self.tanh(combined_embeds) #to try to capture nonlinear relationships in the data
 
-        print("size after tanh: " , combined_embeds.shape)
+
 
         combined_embeds = self.LayerNorm(combined_embeds)
         combined_embeds = self.dropout(combined_embeds)
 
-        print("combined embeddings")
-        print(combined_embeds.shape)
+
+
 
         return combined_embeds
 
@@ -193,17 +182,6 @@ def preprocess_and_embed(preprocessed_data, train_data_loader, config, dropout):
     static_features = static  # (Batch, Static Features)
     labels = labels  # (Batch,)
 
-    print("ts_values:")
-    print("type: ", type(ts_values))
-    print("shape: ", ts_values.shape)
-    print(ts_values)
-
-    print("times shape:")
-    print(times.shape)
-    print("data shape:")
-    print(data.shape)
-    print("static shape:")
-    print(static.shape)
     max_time_steps=times.shape[1]
     num_features=data.shape[1]
     #num_features = int(ts_values.max().item() +1)
@@ -211,13 +189,7 @@ def preprocess_and_embed(preprocessed_data, train_data_loader, config, dropout):
     
     static_size=static.shape[1]
 
-    print("max time steps, num features and static size:")
-    print(max_time_steps)
-    print(num_features)
-    print(static_size)
-
-    print("hidden size config:")
-    print(config.hidden_size)
+   
 
     # Initialize the embedding layer
     
@@ -233,18 +205,8 @@ def preprocess_and_embed(preprocessed_data, train_data_loader, config, dropout):
 
     #data, times, static, labels, mask, delta=next(iter(train_data_loader))
     
-    print("dimensions before entering embedding layer")
-    print(data.shape)
-    print(mask.shape)
-    print(times.shape)
-    print(static.shape)
-    print(labels.shape)
-    print("entering embedding layer line 219")
-
-    print("Maximum index in ts_values:", ts_values.max().item())
-    print("Minimum index in ts_values:", ts_values.min().item())
-    print("Embedding vocabulary size (num_features):", num_features)
-
+   
+   
     # Create embeddings
 
     #ERROR HERE
