@@ -19,6 +19,7 @@ from models.grud import GRUDModel
 from models.ip_nets import InterpolationPredictionModel
 from transformers import MambaConfig, AutoModelForCausalLM, AutoConfig
 from typing import Tuple
+import torch.nn.functional as F
 
 
 def train_test(
@@ -120,6 +121,19 @@ def train(
     # Initialize the model
     if model_type == "mamba":
         
+        #Load pretrained mamba model and save its weights
+
+        weights_model = AutoModelForCausalLM.from_pretrained("whaleloops/clinicalmamba-130m-hf")
+
+        original_weights = weights_model.state_dict()
+        # print("original weights")
+        # print(type(original_weights))
+        # print(len(original_weights))
+
+        # for name, param in original_weights.items():
+        #     print(f"Layer: {name}, Size: {param.size()}")
+
+        #Load config and edit it to reduce layers and vocab size
         config = AutoConfig.from_pretrained("whaleloops/clinicalmamba-130m-hf")
 
         # Update the configuration with reduced dimensions
@@ -130,29 +144,92 @@ def train(
         config.vocab_size= 35000 
         config.torch_dtype = "float16"
 
+        vocab_size = config.vocab_size  # or config.vocab_size if config is an object
+        hidden_size = config.hidden_size  # or config.hidden_size if config is an object
+       
+
+        #Match our new mamba architecture with the original (compatible) weight
+
+        #resize embedding layer
+
+        original_embeddings = weights_model.state_dict()['backbone.embeddings.weight']
+        original_vocab_size, embedding_dim = original_embeddings.shape
+ 
+        if vocab_size != original_vocab_size:
+            resized_embeddings = F.interpolate(original_embeddings.unsqueeze(0), size=(vocab_size), mode='nearest').squeeze(0)
+            print(f"Interpolated embedding layer from {original_vocab_size} to {vocab_size}.")
+        else:
+            resized_embeddings = original_embeddings
+
+
+        # Prepare modified weights with interpolated embeddings
+        modified_weights = original_weights.copy()
+
+        # Update the embedding layer in the modified weights
+        modified_weights['backbone.embeddings.weight'] = resized_embeddings
+
+        # Function to interpolate weights for 1D or 2D tensors
+        def interpolate_weights(weights, new_shape):
+            # For 1D tensors, we can directly resize to the new shape
+            if len(weights.shape) == 1:
+                return nn.functional.interpolate(weights.unsqueeze(0).unsqueeze(0), size=new_shape, mode='linear', align_corners=False).squeeze()
+            
+            # For 2D tensors, use bilinear interpolation
+            return nn.functional.interpolate(weights.unsqueeze(0).unsqueeze(0), size=new_shape, mode='bilinear', align_corners=False).squeeze()
+
+        # Iterate through all layers to resize or reinitialize weights as needed
+        for name, param in modified_weights.items():
+
+            # Resize weights for layers based on hidden_size (using interpolation)
+            if 'weight' in name:
+                if 'backbone.layers' in name:  # Check if it's part of the layers (e.g., attention layers, feedforward)
+                    param_shape = param.shape
+                    print("param shape:", param_shape)
+                    
+                    # If the layer shape matches hidden_size, no resizing is needed
+                    if param_shape[0] == hidden_size and (len(param_shape) == 1 or param_shape[1] == hidden_size):
+                        continue  # No resizing needed for these layers
+                    
+                    # If the first dimension (input size) matches hidden_size, interpolate for the second dimension
+                    elif param_shape[0] == hidden_size:
+                        if len(param_shape) == 1:
+                            param.data = interpolate_weights(param.data, (hidden_size,))  # Interpolate for hidden_size
+                        else:
+                            param.data = interpolate_weights(param.data, (hidden_size, param_shape[1]))  # Interpolate for hidden_size
+                        print(f"Interpolated weight layer: {name} to hidden_size {hidden_size}")
+                    
+                    # If the second dimension (output size) matches hidden_size, interpolate for the first dimension
+                    elif len(param_shape) > 1 and param_shape[1] == hidden_size:
+                        param.data = interpolate_weights(param.data, (param_shape[0], hidden_size))  # Interpolate for hidden_size
+                        print(f"Interpolated weight layer: {name} to hidden_size {hidden_size}")
+                    
+                    else:
+                        # Shape mismatch, attempt to reinitialize the layer
+                        print(f"Shape mismatch for layer {name}: Expected hidden_size, but got {param_shape}")
+                        torch.nn.init.normal_(param, mean=0.0, std=0.02)
+                else:
+                    # If it's not part of the backbone layers, reinitialize the weight layer
+                    print(f"Reinitializing layer: {name}")
+                    torch.nn.init.normal_(param, mean=0.0, std=0.02)
+
+            elif 'bias' in name:
+                # Bias layers usually don't need interpolation, just truncate or reinitialize
+                if param.shape[0] == hidden_size:
+                    param.data = param.data[:hidden_size]  # Truncate bias if necessary
+                    print(f"Truncated bias layer: {name} to hidden_size {hidden_size}")
+                else:
+                    torch.nn.init.zeros_(param)  # Reinitialize bias to zeros
+                    print(f"Reinitialized bias layer: {name} to zeros")
+
         pretrained_model= AutoModelForCausalLM.from_config(config)
-        
-        print("type: ", type(pretrained_model))
-        
-        #pretrained_model = MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf")
-        #pretrained_model = AutoModelForCausalLM.from_pretrained("whaleloops/clinicalmamba-130m-hf")
-        # print("config file: ", pretrained_model.config)
+        # Now load the adjusted weights into the model (strict=False allows for mismatches)
+        pretrained_model.load_state_dict(modified_weights, strict=False)
 
-        # pretrained_model.config.hidden_size = 256 #try to reduce hidden size
-        # pretrained_model.config.d_model = 256
-        # pretrained_model.config.intermediate_size = 512
-        # pretrained_model.config.d_inner = 512
-        # pretrained_model.config.vocab_size= 35000 
+        # Check if everything has been loaded correctly
+        for name, param in pretrained_model.named_parameters():
+            print(f"{name}: shape={param.shape}")
 
-        # print("after changes in config: ")
-        # print(pretrained_model.config)
-        # print("backbone:")
-        # print(pretrained_model.backbone)
-
-        # for name, param in pretrained_model.named_parameters():
-        #     print(f"{name}: shape={param.shape}")
-
-        # #
+  
         model = MambaFinetune(
             pretrained_model=pretrained_model,
             train_data=train_dataloader.dataset,
@@ -224,6 +301,9 @@ def train(
     
     for epoch in range(epochs):
         #model.train().to(device) # CHECK WHAT THIS LINE IS DOING
+        #We empty the cache before training
+        torch.cuda.empty_cache()
+        
         loss_list = []
 
         for batch in tqdm.tqdm(train_dataloader, total=len(train_dataloader)):
@@ -278,6 +358,9 @@ def train(
 
         accum_loss = np.mean(loss_list)
         
+        #We empty the cache after training
+        torch.cuda.empty_cache()
+
         # Validation
         #model.eval().to(device)
         labels_list, predictions_list, logits_list = torch.LongTensor([]), torch.FloatTensor([]), torch.FloatTensor([])
@@ -375,6 +458,10 @@ def test(test_dataloader, output_path, device, model_type, model, **kwargs):
     """
     Testing function for evaluating the model performance.
     """
+    
+    #We empty the cache before testing
+    torch.cuda.empty_cache()
+    
     iterable_dataloader = iter(test_dataloader)
     test_batch = next(iterable_dataloader)
     max_seq_length = test_batch[0].shape[2]
