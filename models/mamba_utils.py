@@ -125,7 +125,6 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
         # for name, param in self.pretrained_model.named_parameters():
         #     print(f"{name}: shape={param.shape}")
 
-
         input_ids= None 
         sequence_outputs = self.backbone(
                 input_ids=None,

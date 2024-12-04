@@ -346,6 +346,7 @@ class MambaFinetune(pl.LightningModule):
 
     def post_init(self) -> None:
         """Apply weight initialization."""
+        
         self.apply(self._init_weights)
 
     def forward(

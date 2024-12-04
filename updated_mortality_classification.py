@@ -95,6 +95,39 @@ def train_test(
     return loss, accuracy_score, auprc_score, auc_score
 
 
+def resize_weights(original_weights: dict):
+    hiddensize=256
+    d_inner=512
+    vocab=8000
+
+    size_changes = {
+        torch.Size([50280, 768]):torch.Size([vocab, hiddensize]),
+        torch.Size([768]): torch.Size([hiddensize]),
+        torch.Size([1536, 16]): torch.Size([d_inner, 16]),
+        torch.Size([1536]): torch.Size([d_inner]),
+        torch.Size([1536, 1, 4]): torch.Size([d_inner, 1, 4]),
+        torch.Size([3072, 768]): torch.Size([d_inner*2, hiddensize]),
+        torch.Size([80, 1536]): torch.Size([80, d_inner]),
+        torch.Size([1536, 48]): torch.Size([d_inner, 48]),
+        torch.Size([768, 1536]): torch.Size([hiddensize, d_inner]),
+        # Add any other size changes here as needed
+    }
+
+    resized_weights = {}
+
+    # Iterate through the original weights and resize them if needed
+    for name, param in original_weights.items():
+        for old_size, new_size in size_changes.items():
+            if param.size() == old_size:
+                print(f"Resizing {name}: {param.size()} -> {new_size}")
+                # Resize the parameter to the new size (trimming or padding)
+                resized_weights[name] = param.data[:new_size[0], :new_size[1]] if len(new_size) > 1 else param.data[:new_size[0]]
+                break
+        else:
+            resized_weights[name] = param
+
+    return resized_weights
+
 def train(
     train_dataloader,
     val_dataloader,
@@ -129,6 +162,8 @@ def train(
         # print("original weights")
         # print(type(original_weights))
         # print(len(original_weights))
+        # Resize the weights before loading them into the model
+        resized_weights = resize_weights(original_weights)
 
         # for name, param in original_weights.items():
         #     print(f"Layer: {name}, Size: {param.size()}")
@@ -141,7 +176,7 @@ def train(
         config.d_model = 256
         config.intermediate_size = 512
         config.d_inner = 512
-        config.vocab_size= 35000 
+        config.vocab_size= 8000
         config.torch_dtype = "float16"
 
         vocab_size = config.vocab_size  # or config.vocab_size if config is an object
@@ -154,8 +189,9 @@ def train(
 
         original_embeddings = weights_model.state_dict()['backbone.embeddings.weight']
         original_vocab_size, embedding_dim = original_embeddings.shape
- 
-        if vocab_size != original_vocab_size:
+        print("original_embeddings",original_embeddings.shape)
+
+        '''if vocab_size != original_vocab_size:
             resized_embeddings = F.interpolate(original_embeddings.unsqueeze(0), size=(vocab_size), mode='nearest').squeeze(0)
             print(f"Interpolated embedding layer from {original_vocab_size} to {vocab_size}.")
         else:
@@ -219,15 +255,15 @@ def train(
                     print(f"Truncated bias layer: {name} to hidden_size {hidden_size}")
                 else:
                     torch.nn.init.zeros_(param)  # Reinitialize bias to zeros
-                    print(f"Reinitialized bias layer: {name} to zeros")
+                    print(f"Reinitialized bias layer: {name} to zeros")'''
 
         pretrained_model= AutoModelForCausalLM.from_config(config)
         # Now load the adjusted weights into the model (strict=False allows for mismatches)
-        pretrained_model.load_state_dict(modified_weights, strict=False)
+        pretrained_model.load_state_dict(resized_weights, strict=False)
 
         # Check if everything has been loaded correctly
-        for name, param in pretrained_model.named_parameters():
-            print(f"{name}: shape={param.shape}")
+        # for name, param in pretrained_model.named_parameters():
+        #     print(f"{name}: shape={param.shape}")
 
   
         model = MambaFinetune(
@@ -282,8 +318,9 @@ def train(
     print(f"# of trainable parameters: {params}")
 
     criterion = nn.CrossEntropyLoss()
+    print("CrossEntropyLoss")
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-
+    print("Adam")
     early_stopping = EarlyStopping(
         patience=patience, verbose=True, path=f"{output_path}/checkpoint.pt"
     )
