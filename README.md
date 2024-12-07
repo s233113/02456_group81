@@ -1,8 +1,13 @@
-# Selective_SSM_for_EHR_Classification
-Project 24 for 02456 2024. Slides from group meetings can be found here: https://docs.google.com/presentation/d/1yetlmIH0u_5zdRKiLDMxKVesZKkAbiG7j0vTfhUPhU0/edit?usp=sharing
+# Deep State Space Model for Mortality Classification using Electronic Health Records
+
+Repository branched from https://github.com/gsn245/Selective_SSM_for_EHR_Classification
 
 # Background
 This repository allows you to train and test a variety of electronic health record (EHR) classification models on mortality prediction for the Physionet 2012 Challenge (`P12`) dataset. More information on the dataset can be found here (https://physionet.org/content/challenge-2012/1.0.0/). Note that the data in the repository has already been preprocessed (outliers removed, normalized) in accordance with https://github.com/ExpectationMax/medical_ts_datasets/tree/master and saved as 5 randomized splits of train/validation/test data. Adam is used for optimization.
+
+Additionally, we've added some scripts for two purposes:
+1. Integrating the EHR mamba implementation from https://github.com/VectorInstitute/odyssey
+2. Creating a custom mamba implementation for the Physionet 2012 Challenge dataset
 
 # Create Environment
 The dependencies are listed for python 3.9.
@@ -55,6 +60,12 @@ pip install torch_scatter --extra-index-url https://data.pyg.org/whl/torch-2.2.0
 `ipnets` (https://github.com/mlds-lab/interp-net):
 
 `python cli.py --output_path=your/path/here --model_type=ipnets --epochs=100 --batch_size=32 --lr=0.001 --ipnets_imputation_stepsize=1 --ipnets_reconst_fraction=0.75 --recurrent_dropout=0.3 --recurrent_n_units=32` 
+
+
+For running the mamba models, the following commands can be run:
+
+1. EHR mamba
+2. `python custommamba.py` (the settings are defined inside the script)
 
 
 # DIY
