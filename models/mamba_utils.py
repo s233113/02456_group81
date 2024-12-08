@@ -150,13 +150,16 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
         #     torch.arange(batch_size, device=last_hidden_states.device),
         #     last_token_indexes,
         # ]
-        pooled_last_hidden_states = last_hidden_states.mean(dim=1)
-
-        logits = self.classifier(pooled_last_hidden_states)
-
-
-        loss = None
+        
+        #print("pooled lhd shape: ", last_hidden_states.shape)
+        #pooled_last_hidden_states= last_hidden_states.mean(dim=1) #pooling over the sequence length, meaning we're reducing the sequence dimension by taking the mean over the sequence
        
+        pooled_last_hidden_states = last_hidden_states[:, -1, :]  # Shape: [batch_size, hidden_size]
+        #print("shape before logits mamba utils: ", pooled_last_hidden_states.shape)
+        logits = self.classifier(pooled_last_hidden_states)
+        #print("shape logits mamba utils: ", logits.shape)
+        loss = None
+        
         # logits = logits[:, 0, :]  # Pooling
         # datasummed = torch.sum(logits, dim=1)
         # datacounts = torch.clamp(logits, min=1e-9)

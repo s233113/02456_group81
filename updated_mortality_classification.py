@@ -20,6 +20,7 @@ from models.ip_nets import InterpolationPredictionModel
 from transformers import MambaConfig, AutoModelForCausalLM, AutoConfig
 from typing import Tuple
 import torch.nn.functional as F
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 
 def train_test(
@@ -35,6 +36,7 @@ def train_test(
     lr=0.0001,
     early_stop_criteria="auroc"
 ):
+    torch.cuda.empty_cache()
 
     train_batch_size = batch_size // 2  # we concatenate 2 batches together
 
@@ -96,9 +98,9 @@ def train_test(
 
 
 def resize_weights(original_weights: dict):
-    hiddensize=256
-    d_inner=512
-    vocab=8000
+    hiddensize=768
+    d_inner=256
+    vocab=10000
 
     size_changes = {
         torch.Size([50280, 768]):torch.Size([vocab, hiddensize]),
@@ -172,12 +174,12 @@ def train(
         config = AutoConfig.from_pretrained("whaleloops/clinicalmamba-130m-hf")
 
         # Update the configuration with reduced dimensions
-        config.hidden_size = 256
-        config.d_model = 256
-        config.intermediate_size = 512
-        config.d_inner = 512
-        config.vocab_size= 8000
-        config.torch_dtype = "float16"
+        config.hidden_size = 768
+        config.d_model = 768
+        config.intermediate_size = 256
+        config.d_inner = 256
+        config.vocab_size= 10000
+        #config.torch_dtype = "float16"
 
         vocab_size = config.vocab_size  # or config.vocab_size if config is an object
         hidden_size = config.hidden_size  # or config.hidden_size if config is an object
@@ -331,21 +333,24 @@ def train(
             ",".join(["epoch", "train_loss", "val_loss", "val_roc_auc_score"]) + "\n"
         )
 
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5, verbose=True) #extra additions
 
     #try to pass model to device outside for loop
 
     #model=model.to(device)
     
     for epoch in range(epochs):
-        #model.train().to(device) # CHECK WHAT THIS LINE IS DOING
+        
+        #.to(device) # CHECK WHAT THIS LINE IS DOING
         #We empty the cache before training
         torch.cuda.empty_cache()
+        model.train()
+        
         
         loss_list = []
 
         for batch in tqdm.tqdm(train_dataloader, total=len(train_dataloader)):
             data, times, static, labels, mask, delta = batch
-
 
             if (data.shape[0]==batch_size):
                 if model_type != "grud" :
@@ -365,8 +370,11 @@ def train(
 
                     # input_mamba=Tuple[data, mask, times, static]
                     #model = model.to(device) # Are we sending to device twice??? See line 182
-                    loss, logits = model(inputs=input_mamba, labels=labels)
+                    _, logits = model(inputs=input_mamba, labels=labels) #we dont use this loss, we compute it with rachel's methods
                     predictions = torch.argmax(logits, dim=1)
+                    #print("shape logits train: ", logits.shape)
+
+                    print("Labels and logits shape: ", logits.shape, labels.shape)
                 else:
                     predictions = model(
                         x=data, static=static, time=times, sensor_mask=mask, delta=delta
@@ -384,24 +392,39 @@ def train(
                 if model_type == "mamba":
            
                     #loss = criterion(logits.squeeze(-1), labels) + recon_loss
-                    loss = torch.tensor(criterion(logits.squeeze(-1), labels) + recon_loss, requires_grad=True)
+                    #loss = torch.tensor(criterion(logits.squeeze(-1), labels) + recon_loss, requires_grad=True)
+                    loss = criterion(logits.squeeze(-1), labels) + recon_loss
+                    #print(f"Loss requires grad: {loss.requires_grad}")
+
                 else:
                     loss = torch.tensor(criterion(predictions.cpu(), labels) + recon_loss, requires_grad=False)
 
-                loss_list.append(loss.item())
-                # loss.backward(retain_graph=True)
-                loss.backward()
-                optimizer.step()
+                # print("logits requires grad:" , logits.requires_grad)
+                # print("labels requires grad: ", labels.requires_grad)
 
-        accum_loss = np.mean(loss_list)
-        
+                # for name, param in model.named_parameters():
+                #     print(f"{name}: requires_grad={param.requires_grad}")
+                # print("layers")
+                # print(list(model.named_parameters()))  # Confirm all layers are listed
+
+                loss.backward(retain_graph=True)
+                # for name, param in model.named_parameters():
+                #     if param.grad is not None:
+                #         print(f"Grad norm for {name}: {param.grad.norm()}")
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0) #extra additions
+                optimizer.step()
+                print("loss in train: ", loss)
+                loss_list.append(loss.item())
+
+            accum_loss = np.mean(loss_list)
+            
         #We empty the cache after training
         torch.cuda.empty_cache()
 
         # Validation
         #model.eval().to(device)
+        model.eval()
         labels_list, predictions_list, logits_list = torch.LongTensor([]), torch.FloatTensor([]), torch.FloatTensor([])
-
         with torch.no_grad():
             for batch in val_dataloader:
                 data, times, static, labels, mask, delta = batch
@@ -418,8 +441,7 @@ def train(
                         labels=labels.to(device)
                         input_mamba: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] = (data, mask, times, static)
                         #model = model.to(device)
-                        loss, logits = model(inputs=input_mamba, labels=labels)
-                        
+                        _, logits = model(inputs=input_mamba, labels=labels)
                         predictions = torch.argmax(logits, dim=1)
                     else:
                         predictions = model(
@@ -431,14 +453,15 @@ def train(
 
                     if model_type=="mamba":
                         logits_list = torch.cat((logits_list, logits.squeeze(-1).cpu()), dim=0)
+                        #print("logits list: " , logits_list)
                     else:
                         predictions = predictions.squeeze(-1)
                         predictions_list = torch.cat((predictions_list, predictions.cpu()), dim=0)
 
 
-
             if model_type=="mamba":
                 probs = torch.nn.functional.softmax(logits_list, dim=1)
+
                 auc_score = metrics.roc_auc_score(labels_list, probs[:, 1])
                 aupr_score = metrics.average_precision_score(labels_list, probs[:, 1])
             else:
@@ -448,7 +471,20 @@ def train(
 
         if model_type=="mamba":
             #val_loss = criterion(logits_list.cpu(), labels_list)
-            val_loss = torch.tensor(criterion(logits_list.cpu(), labels_list), requires_grad=True)
+            #val_loss = torch.tensor(criterion(logits_list.cpu(), labels_list), requires_grad=False)
+            val_loss=criterion(logits_list.cpu(),labels_list)
+
+            #print("val loss 1")
+           # print(val_loss)
+
+            #val_loss = criterion(logits_list.cpu(), labels_list)
+
+            # print("val loss 2")
+            # print(val_loss)
+
+            # print("logits list")
+            # print(logits_list.shape)
+            # print(labels_list.shape)
 
         else:
             val_loss = torch.tensor(criterion(predictions_list.cpu(), labels_list), requires_grad=False)
@@ -462,6 +498,7 @@ def train(
 
         print(f"Epoch {epoch+1}: Train Loss = {accum_loss}, Val Loss = {val_loss}")
 
+        scheduler.step(val_loss)
         if early_stop_criteria == "auroc":
             early_stopping(1 - auc_score, model)
         elif early_stop_criteria == "auprc":
@@ -508,7 +545,7 @@ def test(test_dataloader, output_path, device, model_type, model, **kwargs):
 
     criterion = nn.CrossEntropyLoss()
     model.load_state_dict(torch.load(f"{output_path}/checkpoint.pt"))
-    #model.eval().to(device)
+    model.eval() #.to(device)
 
     labels_list, predictions_list, logits_list = torch.LongTensor([]), torch.FloatTensor([]), torch.FloatTensor([])
 
@@ -529,7 +566,7 @@ def test(test_dataloader, output_path, device, model_type, model, **kwargs):
 
                     # input_mamba=Tuple[data, mask, times, static]
                     #model = model.to(device)
-                    loss, logits = model(inputs=input_mamba, labels=labels)
+                    _, logits = model(inputs=input_mamba, labels=labels)
                     predictions = torch.argmax(logits, dim=1)
                 else:
                     predictions = model(
