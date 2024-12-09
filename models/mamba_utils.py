@@ -117,7 +117,6 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
             )
 
         last_hidden_states = sequence_outputs[0]
-        batch_size = last_hidden_states.shape[0]
 
         # Pool the hidden states for the last tokens before padding
         # to use for classification

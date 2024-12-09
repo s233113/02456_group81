@@ -85,8 +85,8 @@ def train_test(
 
 
 def resize_weights(original_weights: dict):
-    hiddensize=768
-    d_inner=256
+    hiddensize=256
+    d_inner=512
     vocab=10000
 
     size_changes = {
@@ -108,7 +108,7 @@ def resize_weights(original_weights: dict):
     for name, param in original_weights.items():
         for old_size, new_size in size_changes.items():
             if param.size() == old_size:
-                print(f"Resizing {name}: {param.size()} -> {new_size}")
+                #print(f"Resizing {name}: {param.size()} -> {new_size}")
                 # Resize the parameter to the new size (trimming or padding)
                 resized_weights[name] = param.data[:new_size[0], :new_size[1]] if len(new_size) > 1 else param.data[:new_size[0]]
                 break
@@ -153,10 +153,10 @@ def train(
         config = AutoConfig.from_pretrained("whaleloops/clinicalmamba-130m-hf")
 
         # Update the configuration with reduced dimensions
-        config.hidden_size = 768
-        config.d_model = 768
-        config.intermediate_size = 256
-        config.d_inner = 256
+        config.hidden_size = 256
+        config.d_model = 256
+        config.intermediate_size = 512
+        config.d_inner = 512
         config.vocab_size= 10000
         #config.torch_dtype = "float16"
 
@@ -165,6 +165,10 @@ def train(
         pretrained_model= AutoModelForCausalLM.from_config(config)
         # Now load the adjusted weights into the model (strict=False allows for mismatches)
         pretrained_model.load_state_dict(resized_weights, strict=False)
+
+        for params in pretrained_model.parameters():
+            params.requires_grad = False
+
   
         model = MambaFinetune(
             pretrained_model=pretrained_model,
@@ -236,16 +240,22 @@ def train(
     #try to pass model to device outside for loop
 
     #model=model.to(device)
+
+    unfreeze_epoch = 4
     
     for epoch in range(epochs):
-        
-        #.to(device) # CHECK WHAT THIS LINE IS DOING
-        #We empty the cache before training
+
+        # We empty the cache before training
         torch.cuda.empty_cache()
         model.train()
         
         
         loss_list = []
+
+        if epoch == unfreeze_epoch:
+            print(f"Unfreezing all layers at epoch {epoch + 1}")
+            for param in model.parameters():
+                param.requires_grad = True
 
         for batch in tqdm.tqdm(train_dataloader, total=len(train_dataloader)):
             data, times, static, labels, mask, delta = batch
@@ -269,9 +279,7 @@ def train(
                     # input_mamba=Tuple[data, mask, times, static]
                     _, logits = model(inputs=input_mamba, labels=labels) #we dont use this loss, we compute it with rachel's methods
                     predictions = torch.argmax(logits, dim=1)
-                    #print("shape logits train: ", logits.shape)
 
-                    print("Labels and logits shape: ", logits.shape, labels.shape)
                 else:
                     predictions = model(
                         x=data, static=static, time=times, sensor_mask=mask, delta=delta
@@ -364,8 +372,11 @@ def train(
             )
 
         print(f"Epoch {epoch+1}: Train Loss = {accum_loss}, Val Loss = {val_loss}")
+        for param_group in optimizer.param_groups:
+            print(f"Epoch {epoch+1}, Learning Rate: {param_group['lr']}")
 
-        scheduler.step(val_loss)
+
+        scheduler.step(val_loss.item())
         if early_stop_criteria == "auroc":
             early_stopping(1 - auc_score, model)
         elif early_stop_criteria == "auprc":
