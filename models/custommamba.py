@@ -73,7 +73,6 @@ def train_model(model, train_loader, criterion, optimizer, device):
             lengths.to(device),
         )
 
-        # Cuantiza los valores continuos de ts_values
         ts_values_quantized = quantize_tensor(ts_values, num_bins)
 
         optimizer.zero_grad()
