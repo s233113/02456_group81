@@ -85,9 +85,9 @@ def train_test(
 
 
 def resize_weights(original_weights: dict):
-    hiddensize=256
-    d_inner=512
-    vocab=10000
+    hiddensize=128
+    d_inner=256
+    vocab=5000
 
     size_changes = {
         torch.Size([50280, 768]):torch.Size([vocab, hiddensize]),
@@ -153,11 +153,11 @@ def train(
         config = AutoConfig.from_pretrained("whaleloops/clinicalmamba-130m-hf")
 
         # Update the configuration with reduced dimensions
-        config.hidden_size = 256
-        config.d_model = 256
-        config.intermediate_size = 512
-        config.d_inner = 512
-        config.vocab_size= 10000
+        config.hidden_size = 128 #256
+        config.d_model = 128
+        config.intermediate_size = 256 #512
+        config.d_inner = 256 #512
+        config.vocab_size= 5000 #10000
         #config.torch_dtype = "float16"
 
         #Match our new mamba architecture with the original (compatible) weight

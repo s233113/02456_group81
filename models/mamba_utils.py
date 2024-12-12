@@ -95,6 +95,7 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
     )
     def forward(
         self,
+        input_ids: torch.LongTensor = None,
         inputs_embeds: torch.FloatTensor = None,
         labels: Optional[torch.LongTensor] = None,
         output_hidden_states: Optional[bool] = None,
@@ -108,23 +109,39 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
 
         Returns:
         """
-        #input_ids= None 
-        sequence_outputs = self.backbone(
+
+        if inputs_embeds is not None:
+            sequence_outputs = self.backbone(
                 input_ids=None,
                 inputs_embeds=inputs_embeds,
                 output_hidden_states=output_hidden_states,
                 return_dict=return_dict,
             )
+        else:
+            sequence_outputs = self.backbone(
+                input_ids=input_ids,
+                inputs_embeds=None,
+                output_hidden_states=output_hidden_states,
+                return_dict=return_dict,
+            )
+
 
         last_hidden_states = sequence_outputs[0]
+        batch_size = last_hidden_states.shape[0]
 
         # Pool the hidden states for the last tokens before padding
         # to use for classification
-        pooled_last_hidden_states = last_hidden_states[:, -1, :]  # Shape: [batch_size, hidden_size]
+        last_token_indexes = (
+            torch.eq(input_ids, self.config.pad_token_id).int().argmax(-1) - 1
+        )
+        pooled_last_hidden_states = last_hidden_states[
+            torch.arange(batch_size, device=last_hidden_states.device),
+            last_token_indexes,
+        ]
+
         logits = self.classifier(pooled_last_hidden_states)
-        loss = None
-        
-        labels = labels.view(-1)  # Flatten label
+
+        loss= None
         
         return loss,logits
 

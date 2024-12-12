@@ -2,6 +2,7 @@ import torch
 from torch import nn
 import pdb
 import numpy as np
+from torch.nn.utils.rnn import pad_sequence
 
 
 # Time embedding layer
@@ -138,7 +139,32 @@ def preprocess_and_embed(preprocessed_data, train_data_loader, config, dropout):
     # Create embeddings
     embedded_data = embedding_layer(ts_values, ts_indicators, ts_times, static_features)
 
-    return embedded_data,labels
+
+    # Custom collate_fn for DataLoader
+    # It does batch preparation, padding of time-series data, since not all the data has the same length
+
+    ts_values_padded = pad_sequence(ts_values, batch_first=True)
+
+    #Add custom tokenizer
+    # This function acts as a tokenizer, because it discretizes the continuous variables into bins (quantization)
+
+    min_val, max_val = ts_values_padded.min(), ts_values_padded.max()
+
+    #Adjust so all vals are in the positive range
+    tensor_normalized = (ts_values_padded - min_val) / (max_val - min_val)
+
+    num_bins = labels.shape[0] #We are setting the number of bins equal to the batch size
+
+    #Create the bins (0,1) and discretize
+    bins = torch.linspace(0, 1, steps=num_bins + 1, device=ts_values_padded.device)
+    quantized = torch.bucketize(tensor_normalized, bins) - 1 
+    #All the bins need to be in the appropiate range, we got an error if we did not do this.
+    quantized = quantized.clamp(0, num_bins - 1) 
+
+    #Reduce the dimensionality
+    quantized_ts_values= quantized.argmax(-1)
+
+    return embedded_data,labels, quantized_ts_values
 
 def get_vocab_size(embedding_layer: ConceptEmbedding) -> int:
     """

@@ -127,8 +127,10 @@ class MambaFinetune(pl.LightningModule):
 
         input_embeds = self.embeddings[0].to("cuda")
         labels=self.embeddings[1].to("cuda")    
+        input_ids= self.embeddings[2].to("cuda")
         
         return self.model(
+            input_ids=input_ids,
             inputs_embeds=input_embeds,
             labels=labels,
             output_hidden_states=output_hidden_states,
