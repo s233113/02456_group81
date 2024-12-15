@@ -143,20 +143,20 @@ def preprocess_and_embed(preprocessed_data, train_data_loader, config, dropout):
     # Custom collate_fn for DataLoader
     # It does batch preparation, padding of time-series data, since not all the data has the same length
 
-    ts_values_padded = pad_sequence(ts_values, batch_first=True)
+    #ts_values_padded = pad_sequence(ts_values, batch_first=True)
 
     #Add custom tokenizer
     # This function acts as a tokenizer, because it discretizes the continuous variables into bins (quantization)
 
-    min_val, max_val = ts_values_padded.min(), ts_values_padded.max()
+    min_val, max_val = ts_values.min(), ts_values.max()
 
     #Adjust so all vals are in the positive range
-    tensor_normalized = (ts_values_padded - min_val) / (max_val - min_val)
+    tensor_normalized = (ts_values - min_val) / (max_val - min_val)
 
-    num_bins = labels.shape[0] #We are setting the number of bins equal to the batch size
+    num_bins = 256 #We are setting the number of bins equal to the batch size
 
     #Create the bins (0,1) and discretize
-    bins = torch.linspace(0, 1, steps=num_bins + 1, device=ts_values_padded.device)
+    bins = torch.linspace(0, 1, steps=num_bins + 1, device=ts_values.device)
     quantized = torch.bucketize(tensor_normalized, bins) - 1 
     #All the bins need to be in the appropiate range, we got an error if we did not do this.
     quantized = quantized.clamp(0, num_bins - 1) 
