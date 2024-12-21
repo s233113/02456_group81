@@ -139,15 +139,6 @@ def preprocess_and_embed(preprocessed_data, train_data_loader, config, dropout):
     # Create embeddings
     embedded_data = embedding_layer(ts_values, ts_indicators, ts_times, static_features)
 
-
-    # Custom collate_fn for DataLoader
-    # It does batch preparation, padding of time-series data, since not all the data has the same length
-
-    #ts_values_padded = pad_sequence(ts_values, batch_first=True)
-
-    #Add custom tokenizer
-    # This function acts as a tokenizer, because it discretizes the continuous variables into bins (quantization)
-
     min_val, max_val = ts_values.min(), ts_values.max()
 
     #Adjust so all vals are in the positive range
