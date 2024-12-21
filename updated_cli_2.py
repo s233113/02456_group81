@@ -71,6 +71,8 @@ def core_function(
     """
     Main CLI entry point for training models.
     """
+    torch.cuda.empty_cache()
+ 
     model_args = kwargs
 
     # Set random seeds for reproducibility

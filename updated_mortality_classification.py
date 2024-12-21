@@ -17,8 +17,10 @@ from models.early_stopper import EarlyStopping
 from models.deep_set_attention import DeepSetAttentionModel
 from models.grud import GRUDModel
 from models.ip_nets import InterpolationPredictionModel
-from transformers import MambaConfig, AutoModelForCausalLM
+from transformers import AutoModelForCausalLM, AutoConfig
 from typing import Tuple
+import torch.nn.functional as F
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 
 def train_test(
@@ -34,6 +36,7 @@ def train_test(
     lr=0.0001,
     early_stop_criteria="auroc"
 ):
+    torch.cuda.empty_cache()
 
     train_batch_size = batch_size // 2  # we concatenate 2 batches together
 
@@ -43,19 +46,6 @@ def train_test(
     train_dataloader = DataLoader(train_pair, train_batch_size, shuffle=True, num_workers=16, collate_fn=train_collate_fn, pin_memory=True)
     test_dataloader = DataLoader(test_data, batch_size, shuffle=True, num_workers=16, collate_fn=val_test_collate_fn, pin_memory=True)
     val_dataloader = DataLoader(val_data, batch_size, shuffle=False, num_workers=16, collate_fn=val_test_collate_fn, pin_memory=True)
-
-    # for batch in train_dataloader:
-    #     data, times, static, labels, mask, delta = batch
-    #     print(f"Batch data shape: {data.shape}")
-    #     print(f"Batch times shape: {times.shape}")
-    #     print(f"Batch static shape: {static.shape}")
-    #     print(f"Batch labels shape: {labels.shape}")
-    #     print(f"Batch mask shape: {mask.shape}")
-    #     print(f"Batch delta shape: {delta.shape}")
-    #     break
-
-    print(type(train_dataloader))
-
     
     # assign GPU
     if torch.cuda.is_available():
@@ -94,6 +84,39 @@ def train_test(
     return loss, accuracy_score, auprc_score, auc_score
 
 
+def resize_weights(original_weights: dict):
+    hiddensize=64
+    d_inner=128
+    vocab=300
+
+    size_changes = {
+        torch.Size([50280, 768]):torch.Size([vocab, hiddensize]),
+        torch.Size([768]): torch.Size([hiddensize]),
+        torch.Size([1536, 16]): torch.Size([d_inner, 16]),
+        torch.Size([1536]): torch.Size([d_inner]),
+        torch.Size([1536, 1, 4]): torch.Size([d_inner, 1, 4]),
+        torch.Size([3072, 768]): torch.Size([d_inner*2, hiddensize]),
+        torch.Size([80, 1536]): torch.Size([80, d_inner]),
+        torch.Size([1536, 48]): torch.Size([d_inner, 48]),
+        torch.Size([768, 1536]): torch.Size([hiddensize, d_inner]),
+        # Add any other size changes here as needed
+    }
+
+    resized_weights = {}
+
+    # Iterate through the original weights and resize them if needed
+    for name, param in original_weights.items():
+        for old_size, new_size in size_changes.items():
+            if param.size() == old_size:
+                #print(f"Resizing {name}: {param.size()} -> {new_size}")
+                # Resize the parameter to the new size (trimming or padding)
+                resized_weights[name] = param.data[:new_size[0], :new_size[1]] if len(new_size) > 1 else param.data[:new_size[0]]
+                break
+        else:
+            resized_weights[name] = param
+
+    return resized_weights
+
 def train(
     train_dataloader,
     val_dataloader,
@@ -117,12 +140,36 @@ def train(
     static_size = test_batch[2].shape[1]
     batch_size=  test_batch[0].shape[0]
 
-    print(type(train_dataloader))
     # Initialize the model
     if model_type == "mamba":
-        #pretrained_model = MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf")
-        pretrained_model = AutoModelForCausalLM.from_pretrained("whaleloops/clinicalmamba-130m-hf")
+        
+        #Load pretrained mamba model and save its weights
+        weights_model = AutoModelForCausalLM.from_pretrained("whaleloops/clinicalmamba-130m-hf")
+        original_weights = weights_model.state_dict()
+        # Resize the weights before loading them into the model
+        resized_weights = resize_weights(original_weights)
 
+        #Load config and edit it to reduce layers and vocab size
+        config = AutoConfig.from_pretrained("whaleloops/clinicalmamba-130m-hf")
+
+        # Update the configuration with reduced dimensions
+        config.hidden_size = 64 #256
+        config.d_model = 64
+        config.intermediate_size = 128 #512
+        config.d_inner = 128 #512
+        config.vocab_size= 300 #10000
+        #config.torch_dtype = "float16"
+
+        #Match our new mamba architecture with the original (compatible) weight
+        #resize embedding layer
+        pretrained_model= AutoModelForCausalLM.from_config(config)
+        # Now load the adjusted weights into the model (strict=False allows for mismatches)
+        pretrained_model.load_state_dict(resized_weights, strict=False)
+
+        for params in pretrained_model.parameters():
+            params.requires_grad = False
+
+  
         model = MambaFinetune(
             pretrained_model=pretrained_model,
             train_data=train_dataloader.dataset,
@@ -175,8 +222,9 @@ def train(
     print(f"# of trainable parameters: {params}")
 
     criterion = nn.CrossEntropyLoss()
+    print("CrossEntropyLoss")
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-
+    print("Adam")
     early_stopping = EarlyStopping(
         patience=patience, verbose=True, path=f"{output_path}/checkpoint.pt"
     )
@@ -187,18 +235,30 @@ def train(
             ",".join(["epoch", "train_loss", "val_loss", "val_roc_auc_score"]) + "\n"
         )
 
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5, verbose=True) #extra additions
 
     #try to pass model to device outside for loop
 
     #model=model.to(device)
+
+    unfreeze_epoch = 4
     
     for epoch in range(epochs):
-        #model.train().to(device) # CHECK WHAT THIS LINE IS DOING
+
+        # We empty the cache before training
+        torch.cuda.empty_cache()
+        model.train()
+        
+        
         loss_list = []
+
+        if epoch == unfreeze_epoch:
+            print(f"Unfreezing all layers at epoch {epoch + 1}")
+            for param in model.parameters():
+                param.requires_grad = True
 
         for batch in tqdm.tqdm(train_dataloader, total=len(train_dataloader)):
             data, times, static, labels, mask, delta = batch
-
 
             if (data.shape[0]==batch_size):
                 if model_type != "grud" :
@@ -217,9 +277,9 @@ def train(
                     input_mamba: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] = (data, mask, times, static)
 
                     # input_mamba=Tuple[data, mask, times, static]
-                    #model = model.to(device) # Are we sending to device twice??? See line 182
-                    loss, logits = model(inputs=input_mamba, labels=labels)
+                    _, logits = model(inputs=input_mamba, labels=labels) #we dont use this loss, we compute it with rachel's methods
                     predictions = torch.argmax(logits, dim=1)
+
                 else:
                     predictions = model(
                         x=data, static=static, time=times, sensor_mask=mask, delta=delta
@@ -235,28 +295,27 @@ def train(
                     predictions = predictions.squeeze(-1)
 
                 if model_type == "mamba":
-                    print("logit shape")
-                    print(logits.shape)
-                    print(labels.shape)
-                    #loss = criterion(logits.squeeze(-1), labels) + recon_loss
-                    loss = torch.tensor(criterion(logits.squeeze(-1), labels) + recon_loss, requires_grad=True)
-
-                    print(logits.squeeze(-1).shape)
-                    print(labels.shape)
+                    #loss = torch.tensor(criterion(logits.squeeze(-1), labels) + recon_loss, requires_grad=True)
+                    loss = criterion(logits.squeeze(-1), labels) + recon_loss
                 else:
                     loss = torch.tensor(criterion(predictions.cpu(), labels) + recon_loss, requires_grad=False)
 
-                loss_list.append(loss.item())
-                # loss.backward(retain_graph=True)
-                loss.backward()
-                optimizer.step()
 
-        accum_loss = np.mean(loss_list)
+                loss.backward(retain_graph=True)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0) #extra additions
+                optimizer.step()
+                print("loss in train: ", loss)
+                loss_list.append(loss.item())
+
+            accum_loss = np.mean(loss_list)
+            
+        #We empty the cache after training
+        torch.cuda.empty_cache()
 
         # Validation
         #model.eval().to(device)
+        model.eval()
         labels_list, predictions_list, logits_list = torch.LongTensor([]), torch.FloatTensor([]), torch.FloatTensor([])
-
         with torch.no_grad():
             for batch in val_dataloader:
                 data, times, static, labels, mask, delta = batch
@@ -273,8 +332,7 @@ def train(
                         labels=labels.to(device)
                         input_mamba: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] = (data, mask, times, static)
                         #model = model.to(device)
-                        loss, logits = model(inputs=input_mamba, labels=labels)
-                        
+                        _, logits = model(inputs=input_mamba, labels=labels)
                         predictions = torch.argmax(logits, dim=1)
                     else:
                         predictions = model(
@@ -286,14 +344,13 @@ def train(
 
                     if model_type=="mamba":
                         logits_list = torch.cat((logits_list, logits.squeeze(-1).cpu()), dim=0)
+                        #print("logits list: " , logits_list)
                     else:
                         predictions = predictions.squeeze(-1)
                         predictions_list = torch.cat((predictions_list, predictions.cpu()), dim=0)
 
 
-
             if model_type=="mamba":
-                print("logits list: ", logits_list)
                 probs = torch.nn.functional.softmax(logits_list, dim=1)
                 auc_score = metrics.roc_auc_score(labels_list, probs[:, 1])
                 aupr_score = metrics.average_precision_score(labels_list, probs[:, 1])
@@ -303,9 +360,7 @@ def train(
                 aupr_score = metrics.average_precision_score(labels_list, probs[:, 1])
 
         if model_type=="mamba":
-            #val_loss = criterion(logits_list.cpu(), labels_list)
-            val_loss = torch.tensor(criterion(logits_list.cpu(), labels_list), requires_grad=True)
-
+            val_loss=criterion(logits_list.cpu(),labels_list)
         else:
             val_loss = torch.tensor(criterion(predictions_list.cpu(), labels_list), requires_grad=False)
 
@@ -317,7 +372,11 @@ def train(
             )
 
         print(f"Epoch {epoch+1}: Train Loss = {accum_loss}, Val Loss = {val_loss}")
+        for param_group in optimizer.param_groups:
+            print(f"Epoch {epoch+1}, Learning Rate: {param_group['lr']}")
 
+
+        scheduler.step(val_loss.item())
         if early_stop_criteria == "auroc":
             early_stopping(1 - auc_score, model)
         elif early_stop_criteria == "auprc":
@@ -351,6 +410,10 @@ def test(test_dataloader, output_path, device, model_type, model, **kwargs):
     """
     Testing function for evaluating the model performance.
     """
+    
+    #We empty the cache before testing
+    torch.cuda.empty_cache()
+    
     iterable_dataloader = iter(test_dataloader)
     test_batch = next(iterable_dataloader)
     max_seq_length = test_batch[0].shape[2]
@@ -360,7 +423,7 @@ def test(test_dataloader, output_path, device, model_type, model, **kwargs):
 
     criterion = nn.CrossEntropyLoss()
     model.load_state_dict(torch.load(f"{output_path}/checkpoint.pt"))
-    #model.eval().to(device)
+    model.eval() #.to(device)
 
     labels_list, predictions_list, logits_list = torch.LongTensor([]), torch.FloatTensor([]), torch.FloatTensor([])
 
@@ -378,10 +441,7 @@ def test(test_dataloader, output_path, device, model_type, model, **kwargs):
                 if model_type == "mamba":
                     labels=labels.to(device)
                     input_mamba: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] = (data, mask, times, static)
-
-                    # input_mamba=Tuple[data, mask, times, static]
-                    #model = model.to(device)
-                    loss, logits = model(inputs=input_mamba, labels=labels)
+                    _, logits = model(inputs=input_mamba, labels=labels)
                     predictions = torch.argmax(logits, dim=1)
                 else:
                     predictions = model(

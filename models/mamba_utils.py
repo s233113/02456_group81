@@ -5,15 +5,11 @@ from typing import Optional, Tuple, Union
 
 import torch
 from torch import nn
-from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 from transformers.activations import ACT2FN
 from transformers.models.mamba.modeling_mamba import (
     MAMBA_INPUTS_DOCSTRING,
     MAMBA_START_DOCSTRING,
-    MambaModel,
-    MambaPreTrainedModel,
-    MambaCausalLMOutput,
-    MambaForCausalLM,
+    MambaPreTrainedModel
 )
 from transformers.utils import (
     ModelOutput,
@@ -22,13 +18,7 @@ from transformers.utils import (
     replace_return_docstrings,
 )
 
-from transformers import MambaConfig, AutoModelForCausalLM
-
 _CONFIG_FOR_DOC = "MambaConfig"
-
-
-# ruff: noqa: W505,D205,D101,PLR0912
-
 
 @dataclass
 class MambaSequenceClassifierOutput(ModelOutput):
@@ -69,8 +59,7 @@ class MambaClassificationHead(nn.Module):
     def forward(self, features, **kwargs):
         """Forward pass."""
         x = features  # Pooling is done by the forward pass
-        print("Hello forward loop")
-        print(x.shape)
+
         x = self.dropout(x)
         x = self.dense(x)
         x = ACT2FN[self.config.hidden_act](x)
@@ -87,12 +76,11 @@ class MambaClassificationHead(nn.Module):
     MAMBA_START_DOCSTRING,
 )
 class MambaForSequenceClassification(MambaPreTrainedModel):
-    def __init__(self, config):
+    def __init__(self, config, pretrained_model):
         super().__init__(config)
         self.num_labels = config.num_labels
         self.config = config
-        #self.pretrained_model = MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf")
-        self.pretrained_model = AutoModelForCausalLM.from_pretrained("whaleloops/clinicalmamba-130m-hf")
+        self.pretrained_model = pretrained_model
         self.backbone = self.pretrained_model.backbone
         self.classifier = MambaClassificationHead(config)
 
@@ -107,7 +95,7 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
     )
     def forward(
         self,
-        #input_ids: torch.LongTensor = None,
+        input_ids: torch.LongTensor = None,
         inputs_embeds: torch.FloatTensor = None,
         labels: Optional[torch.LongTensor] = None,
         output_hidden_states: Optional[bool] = None,
@@ -121,57 +109,39 @@ class MambaForSequenceClassification(MambaPreTrainedModel):
 
         Returns:
         """
-        input_ids= None 
 
+       # if inputs_embeds is not None:
+        #    sequence_outputs = self.backbone(
+         #       input_ids=None,
+          #      inputs_embeds=inputs_embeds,
+           #     output_hidden_states=output_hidden_states,
+            #    return_dict=return_dict,
+            #)
+       # else:
         sequence_outputs = self.backbone(
-                input_ids=None,
-                inputs_embeds=inputs_embeds,
+        	input_ids=input_ids,
+                inputs_embeds=None,
                 output_hidden_states=output_hidden_states,
                 return_dict=return_dict,
             )
+
 
         last_hidden_states = sequence_outputs[0]
         batch_size = last_hidden_states.shape[0]
 
         # Pool the hidden states for the last tokens before padding
         # to use for classification
+        last_token_indexes = (
+            torch.eq(input_ids, self.config.pad_token_id).int().argmax(-1) - 1
+        )
+        pooled_last_hidden_states = last_hidden_states[
+            torch.arange(batch_size, device=last_hidden_states.device),
+            last_token_indexes,
+        ]
 
-        #can we feed the last hidden states into the pooling instead of last token indexes
-
-
-    #can we use directly the self.config pad: instead of comparing it with 
-        # last_token_indexes = (
-        #     torch.eq(None, self.config.pad_token_id).int().argmax(-1) - 1
-        # )
-        # pooled_last_hidden_states = last_hidden_states[
-        #     torch.arange(batch_size, device=last_hidden_states.device),
-        #     last_token_indexes,
-        # ]
-        pooled_last_hidden_states = last_hidden_states.mean(dim=1)
-        print("poooled LHS:")
-        print(pooled_last_hidden_states)
         logits = self.classifier(pooled_last_hidden_states)
 
-        print("dimension of logits in mamba_utils")
-        print(logits.shape)
-        print("size of labels before reshapping", labels.shape)
-        loss = None
-       
-        # logits = logits[:, 0, :]  # Pooling
-        # datasummed = torch.sum(logits, dim=1)
-        # datacounts = torch.clamp(logits, min=1e-9)
-        # average = datasummed/datacounts
-        #logits=logits.mean(dim=1) 
-
-
-        print("logits after flattening")
-        print(logits.shape)
-        labels = labels.view(-1)  # Flatten label
-        print("labels shape after flattening ", labels.shape)
-        # if not return_dict:
-        #     #output = (logits,) + sequence_outputs[1:]
-        #     output = (logits,) 
-        #     return ((loss,) + output) if loss is not None else output
-
+        loss= None
+        
         return loss,logits
 
