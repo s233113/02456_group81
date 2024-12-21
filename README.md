@@ -70,7 +70,7 @@ For running the mamba models, the following commands can be run:
 
 2. Custom Mamba;
    - For the regular training over one split of the data: `python custom_mamba.py` (the settings are defined inside the script)
-   - In order to tune some hyperparameters over one split of the data: `python custom_mamba_hyperparams.py` (the settings are defined inside the script)
+   - In order to tune some hyperparameters over one split of the data: `python models/custom_mamba_hyperparams.py` (the settings are defined inside the script)
 
 # Jupyter notebook
 
