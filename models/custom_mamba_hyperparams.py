@@ -131,7 +131,7 @@ if __name__ == "__main__":
     train_dataset = EHRDataset(train_data)
     val_dataset = EHRDataset(validation_data)
     test_dataset = EHRDataset(test_data)
-    batch_size =32
+    batch_size = 128 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, collate_fn=custom_collate_fn, num_workers=4, pin_memory=True, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, collate_fn=custom_collate_fn, num_workers=4, pin_memory=True, shuffle=False)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=custom_collate_fn, num_workers=4, pin_memory=True, shuffle=False)
