@@ -79,3 +79,7 @@ We have also included a Jupyter Notebook, which allows you to run the same comma
 Our experimental setup doesn't allow us to train and run the experiments in a notebook, since the HPC is needed.  
 
 **There are some changes in the jupyter notebook that the user needs to READ in order to manage to run the models.**
+
+The implementation in the jupyter notebook is a simplification of the actual implementation used to get the final results. This notebook is just a proof of concept to fulfill the requirements of the submission. For being able to achieve similar results as those in the paper, we recommend batching the jobs onto the queieing system using jobscripts with the parameters reported in the paper and the commands stated in the readme. 
+
+
