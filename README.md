@@ -75,3 +75,5 @@ For running the mamba models, the following commands can be run:
 # Jupyter notebook
 
 We have also included a Jupyter Notebook, which allows you to run the same commands.
+
+Our experimental setup doesn't allow us to train and run the experiments in a notebook, since the HPC is needed.  
