@@ -40,7 +40,7 @@ pip install -r requirementsmamba.txt
 ```
 
 # Other prerequesites
-You should unzip the data files before running these, and change the output paths in the commands. Additionally, GPU is required for running the Mamba models.
+You should unzip the data files before running these, and change the output paths in the commands. Additionally, GPU is required for running the Mamba models. Thus, we **highly recommend running the models from the command line in the HPC**
 
 # Run models 
 4 baseline models have been implemented in `Pytorch` and can be trained/tested on `P12`. Each has a unique set of hyperparameters that can be modified, but the supervisor has gotten the best performance by running the following commands:
