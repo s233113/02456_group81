@@ -40,16 +40,6 @@ def train_test(
     test_dataloader = DataLoader(test_data, batch_size, shuffle=True, num_workers=16, collate_fn=val_test_collate_fn, pin_memory=True)
     val_dataloader = DataLoader(val_data, batch_size, shuffle=False, num_workers=16, collate_fn=val_test_collate_fn, pin_memory=True)
 
-    for batch in dataloader:
-        data, times, static, labels, mask, delta = batch
-        print(f"Batch data shape: {data.shape}")
-        print(f"Batch times shape: {times.shape}")
-        print(f"Batch static shape: {static.shape}")
-        print(f"Batch labels shape: {labels.shape}")
-        print(f"Batch mask shape: {mask.shape}")
-        print(f"Batch delta shape: {delta.shape}")
-    break
-
     # assign GPU
     if torch.cuda.is_available():
         dev = "cuda"
