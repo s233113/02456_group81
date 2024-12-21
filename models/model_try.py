@@ -112,7 +112,7 @@ class MambaFinetune(pl.LightningModule):
     def forward(
         self,
         inputs: Tuple[
-            torch.Tensor,#(???)
+            torch.Tensor, 
             torch.Tensor,
             torch.Tensor,
             torch.Tensor,
@@ -123,7 +123,6 @@ class MambaFinetune(pl.LightningModule):
         return_dict: Optional[bool] = True,
     ) -> Union[Tuple[torch.Tensor, ...], MambaSequenceClassifierOutput]:
         """Forward pass for the model."""
-        #ts_values, ts_indicators, ts_times, static_features = inputs        
 
         input_embeds = self.embeddings[0].to("cuda")
         labels=self.embeddings[1].to("cuda")    

@@ -99,16 +99,13 @@ def resize_weights(original_weights: dict):
         torch.Size([80, 1536]): torch.Size([80, d_inner]),
         torch.Size([1536, 48]): torch.Size([d_inner, 48]),
         torch.Size([768, 1536]): torch.Size([hiddensize, d_inner]),
-        # Add any other size changes here as needed
     }
 
     resized_weights = {}
 
-    # Iterate through the original weights and resize them if needed
     for name, param in original_weights.items():
         for old_size, new_size in size_changes.items():
             if param.size() == old_size:
-                #print(f"Resizing {name}: {param.size()} -> {new_size}")
                 # Resize the parameter to the new size (trimming or padding)
                 resized_weights[name] = param.data[:new_size[0], :new_size[1]] if len(new_size) > 1 else param.data[:new_size[0]]
                 break
@@ -160,7 +157,6 @@ def train(
         config.vocab_size= 300 #10000
         #config.torch_dtype = "float16"
 
-        #Match our new mamba architecture with the original (compatible) weight
         #resize embedding layer
         pretrained_model= AutoModelForCausalLM.from_config(config)
         # Now load the adjusted weights into the model (strict=False allows for mismatches)
@@ -237,10 +233,6 @@ def train(
 
     scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5, verbose=True) #extra additions
 
-    #try to pass model to device outside for loop
-
-    #model=model.to(device)
-
     unfreeze_epoch = 4
     
     for epoch in range(epochs):
@@ -276,7 +268,6 @@ def train(
                 if model_type == "mamba":
                     input_mamba: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] = (data, mask, times, static)
 
-                    # input_mamba=Tuple[data, mask, times, static]
                     _, logits = model(inputs=input_mamba, labels=labels) #we dont use this loss, we compute it with rachel's methods
                     predictions = torch.argmax(logits, dim=1)
 
@@ -295,7 +286,6 @@ def train(
                     predictions = predictions.squeeze(-1)
 
                 if model_type == "mamba":
-                    #loss = torch.tensor(criterion(logits.squeeze(-1), labels) + recon_loss, requires_grad=True)
                     loss = criterion(logits.squeeze(-1), labels) + recon_loss
                 else:
                     loss = torch.tensor(criterion(predictions.cpu(), labels) + recon_loss, requires_grad=False)
@@ -313,7 +303,6 @@ def train(
         torch.cuda.empty_cache()
 
         # Validation
-        #model.eval().to(device)
         model.eval()
         labels_list, predictions_list, logits_list = torch.LongTensor([]), torch.FloatTensor([]), torch.FloatTensor([])
         with torch.no_grad():
@@ -331,7 +320,6 @@ def train(
                     if model_type == "mamba":
                         labels=labels.to(device)
                         input_mamba: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] = (data, mask, times, static)
-                        #model = model.to(device)
                         _, logits = model(inputs=input_mamba, labels=labels)
                         predictions = torch.argmax(logits, dim=1)
                     else:
@@ -344,7 +332,6 @@ def train(
 
                     if model_type=="mamba":
                         logits_list = torch.cat((logits_list, logits.squeeze(-1).cpu()), dim=0)
-                        #print("logits list: " , logits_list)
                     else:
                         predictions = predictions.squeeze(-1)
                         predictions_list = torch.cat((predictions_list, predictions.cpu()), dim=0)
@@ -423,7 +410,7 @@ def test(test_dataloader, output_path, device, model_type, model, **kwargs):
 
     criterion = nn.CrossEntropyLoss()
     model.load_state_dict(torch.load(f"{output_path}/checkpoint.pt"))
-    model.eval() #.to(device)
+    model.eval() 
 
     labels_list, predictions_list, logits_list = torch.LongTensor([]), torch.FloatTensor([]), torch.FloatTensor([])
 
@@ -465,8 +452,6 @@ def test(test_dataloader, output_path, device, model_type, model, **kwargs):
     else:
         probs = torch.nn.functional.softmax(predictions_list, dim=1)
                 
-    # probs = torch.nn.functional.softmax(predictions_list, dim=1)
-
     results = metrics.classification_report(
         labels_list, torch.argmax(probs, dim=1), output_dict=True  # predictions_list
     )
@@ -493,7 +478,6 @@ def test(test_dataloader, output_path, device, model_type, model, **kwargs):
         "AUROC": auc_score,
     }
     test_metrics.update(results)
-    # test_metrics.update(cm) # TO DO: add later
     with open(f"{output_path}/test_results.json", "w") as fp:
         json.dump(test_metrics, fp)
 
