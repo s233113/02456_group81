@@ -162,7 +162,7 @@ if __name__ == "__main__":
         
         trial_epoch_results = []
 
-        for epoch in range(2):
+        for epoch in range(100):
             train_loss = train_model(model, train_loader, criterion, optimizer, device, params['num_bins'])
             val_acc, val_auroc, val_auprc, val_loss = evaluate_with_metrics(model, val_loader, device, criterion, params['num_bins'])
             print(f"Epoch {epoch + 1}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, Val AUROC: {val_auroc:.4f}")
