@@ -82,4 +82,6 @@ Our experimental setup doesn't allow us to train and run the experiments in a no
 
 The implementation in the jupyter notebook is a simplification of the actual implementation used to get the final results. This notebook is just a proof of concept to fulfill the requirements of the submission. For being able to achieve similar results as those in the paper, we recommend batching the jobs onto the queieing system using jobscripts with the parameters reported in the paper and the commands stated in the readme. 
 
+For being able to run the notebook, we used the following instructions: https://pages.compute.dtu.dk/patmjen/hcp_tutorials/-/blob/main/HPC_Python_Guide.md?ref_type=heads
+
 
