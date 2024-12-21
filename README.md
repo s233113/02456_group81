@@ -84,4 +84,5 @@ The implementation in the jupyter notebook is a simplification of the actual imp
 
 For being able to run the notebook, we used the following instructions: https://pages.compute.dtu.dk/patmjen/hcp_tutorials/-/blob/main/HPC_Python_Guide.md?ref_type=heads
 
-
+# Visualizing the results
+We created a `plotter.ipynb`notebook to visualize the results of the training logs.
