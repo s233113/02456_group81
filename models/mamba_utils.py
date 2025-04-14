@@ -1,5 +1,5 @@
 """Utilities following HuggingFace style for Mamba models."""
-
+""" Modified from https://github.com/VectorInstitute/odyssey/tree/main/odyssey/models/ehr_mamba """
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
