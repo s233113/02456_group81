@@ -1,3 +1,5 @@
+""" Modified from https://github.com/VectorInstitute/odyssey/tree/main/odyssey/models/ehr_mamba"""
+
 import torch
 from torch import nn
 import pdb
