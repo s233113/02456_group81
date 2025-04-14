@@ -1,4 +1,5 @@
 """Mamba model."""
+"""Modified from https://github.com/VectorInstitute/odyssey/tree/main/odyssey/models/ehr_mamba """
 
 from typing import Any, Dict, Optional, Tuple, Union
 
