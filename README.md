@@ -1,4 +1,5 @@
 # Deep State Space Model for Mortality Classification using Electronic Health Records
+This code is for the final project of the course 02456 of the Technical University of Denmark. 
 
 Repository branched from https://github.com/gsn245/Selective_SSM_for_EHR_Classification
 
