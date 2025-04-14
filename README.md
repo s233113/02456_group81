@@ -4,6 +4,8 @@ Repository branched from https://github.com/gsn245/Selective_SSM_for_EHR_Classif
 
 Group 81, members: Paula Gomez Plana Rodriguez (s233165), Michela Sbetta (s230255), Miguel Gonzalez-Valdes Tejero (s233139), Maria Gabriela Frascella (s233113)
 
+Includes modified code from Odyssey repository: https://github.com/VectorInstitute/odyssey. The license of this code is specified under third_party_LICENSE
+
 # Background
 This repository allows you to train and test a variety of electronic health record (EHR) classification models on mortality prediction for the Physionet 2012 Challenge (`P12`) dataset. More information on the dataset can be found here (https://physionet.org/content/challenge-2012/1.0.0/). Note that the data in the repository has already been preprocessed (outliers removed, normalized) in accordance with https://github.com/ExpectationMax/medical_ts_datasets/tree/master and saved as 5 randomized splits of train/validation/test data. Adam is used for optimization.
 
